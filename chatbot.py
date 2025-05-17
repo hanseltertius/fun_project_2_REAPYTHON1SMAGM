@@ -1,10 +1,9 @@
 import streamlit as st
 import requests
 import json
+import time
 
 st.header("💬 AI Chatbot App")
-
-# TODO : generate the echo, it is to test the robot's response
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -36,30 +35,46 @@ if message_input := st.chat_input("Input your message here"):
             response = requests.post(
                 url="https://openrouter.ai/api/v1/chat/completions",
                 headers={
-                    "Authorization": "Bearer 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"
+                    "Authorization": f"Bearer {st.secrets["OPEN_ROUTER_API_KEY"]}"
                 },
                 data=json.dumps({
                     "model": "openai/gpt-3.5-turbo",
-                    "messages": [user_payload]
-                })
+                    "messages": [user_payload],
+                    "stream": True
+                }),
+                stream=True
             )
     #endregion
 
-    if response:
+    if response is not None:
         empty_space.empty()
 
         # TODO : handle error message, need to use the status along with the error message aja
         if response.status_code == 200:
-            response_text_object = json.loads(response.text)
+            full_response = ""
+            with st.chat_message("assistant"):
+                stream_placeholder = st.empty()
+                # TODO : get method for stream_placeholder
+                for line in response.iter_lines():
+                    if line:
+                        decoded_line = line.decode("utf-8")
 
-            text_message_choices = response_text_object.get("choices")
-            if len(text_message_choices) > 0:
-                message_output = text_message_choices[0].get("message")
-                message_output_role = message_output.get("role")
-                message_output_content = message_output.get("content")
+                        if decoded_line.startswith("data: "):
+                            data = decoded_line[6:]
+                            if data == "[DONE]":
+                                break
+                            try:
+                                json_data = json.loads(data)
+                                choices = json_data.get("choices")
+                                if len(choices) > 0:
+                                    delta = choices[0].get("delta")
+                                    if "content" in delta:
+                                        content = delta.get("content")
+                                        full_response += content
+                                        stream_placeholder.markdown(f"{full_response}▌")
+                                        time.sleep(0.03)
+                            except Exception as e:
+                                st.error(f"Streaming error: {e}")
 
-                # TODO : use yield, seperti di ChatGPT
-                with st.chat_message(message_output_role):
-                    st.markdown(message_output_content)
-
-                st.session_state.messages.append({"role": message_output_role, "content": message_output_content})
+                stream_placeholder.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
