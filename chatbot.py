@@ -74,7 +74,20 @@ if message_input := st.chat_input("Input your message here"):
                                         stream_placeholder.markdown(f"{full_response}▌")
                                         time.sleep(0.03)
                             except Exception as e:
-                                st.error(f"Streaming error: {e}")
+                                st.error(f"""
+                                **❌ Streaming Error:**\n
+                                {e}
+                                """)
 
                 stream_placeholder.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
+        else:
+            error_json = json.loads(response.text)
+            error = error_json.get("error")
+            error_message = error.get("message")
+            error_status_code = error.get("code")
+            st.error(f"""
+            **❌ Error**\n
+            **Status Code:** {error_status_code}\n
+            {error_message}
+            """)
