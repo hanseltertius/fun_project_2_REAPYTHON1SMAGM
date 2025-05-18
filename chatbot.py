@@ -22,7 +22,7 @@ def get_generated_response(response):
                     json_data = json.loads(data)
                     error = json_data.get("error")
                     if error is not None:
-                        display_error_message("**❌ Error:**", f"{error.get("message")}")
+                        display_error_message("**❌ Error:**", error_message=f"{error.get("message")}")
                     else:
                         choices = json_data.get("choices")
                         if choices is not None and len(choices) > 0:
@@ -31,17 +31,18 @@ def get_generated_response(response):
                                 content = delta.get("content")
                                 generated_response += content
                                 stream_placeholder.markdown(f"{generated_response}▌")
-                except Exception as e:
-                    display_error_message("**❌ Streaming Error:**", f"{e}")
+                except Exception as ex:
+                    display_error_message("**❌ Streaming Error:**", error_message=ex)
     stream_placeholder.markdown(generated_response)
     return generated_response
 
-def display_error_message(error_title, error_message, error_subtitle = ""):
+def display_error_message(error_title, error_subtitle = "", error_message = ""):
     subtitle = f"{error_subtitle}\n" if error_subtitle else ""
+    message = f"{error_message}\n" if error_message else ""
     st.error(f"""
         {error_title}\n
         {subtitle}
-        {error_message}
+        {message}
     """)
 
 def check_files_not_empty(files):
@@ -142,4 +143,4 @@ if user_input is not None:
             error = error_json.get("error")
             error_message = error.get("message")
             error_status_code = error.get("code")
-            display_error_message("**❌ Error**", error_message, f"**Status Code:** {error_status_code}")
+            display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
