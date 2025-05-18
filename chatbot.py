@@ -6,6 +6,7 @@ import mimetypes
 import uuid
 
 st.header("💬 AI Chatbot App")
+st.markdown("Powered by ```google/gemini-2.5-flash-preview``` via OpenRouter 👾")
 
 # region Methods
 def generate_assistant_response(response):
@@ -23,7 +24,7 @@ def generate_assistant_response(response):
                     json_data = json.loads(data)
                     error = json_data.get("error")
                     if error is not None:
-                        display_error_message("**❌ Error:**", error_message=f"{error.get("message")}")
+                        display_error_message("**❌ Error:**", error_message=error.get("message"))
                     else:
                         choices = json_data.get("choices")
                         if choices is not None and len(choices) > 0:
