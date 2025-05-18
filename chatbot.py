@@ -11,7 +11,6 @@ model = "openai/gpt-4.1"
 # endregion
 
 st.header("💬 AI Chatbot App")
-st.markdown("Powered by ```google/gemini-2.5-flash-preview``` via OpenRouter 👾")
 st.markdown(f"Powered by ```{model}``` via OpenRouter 👾")
 st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
 
@@ -40,8 +39,12 @@ def generate_assistant_response(response):
                             if "content" in message_delta:
                                 generated_response += message_delta.get("content") or ""
                                 stream_placeholder.markdown(f"{generated_response}▌")
+                except json.JSONDecodeError as ex:
+                    display_error_message("**❌ Streaming Error:**", error_message=f"JSON decode error: {ex}")
+                except KeyError as ex:
+                    display_error_message("**❌ Streaming Error:**", error_message=f"Missing key: {ex}")
                 except Exception as ex:
-                    display_error_message("**❌ Streaming Error:**", error_message=ex)
+                    display_error_message("**❌ Streaming Error:**", error_message=str(ex))
     stream_placeholder.markdown(generated_response)
     st.session_state.messages.append({"role": "assistant", "content": generated_response})
 
@@ -55,7 +58,7 @@ def display_error_message(error_title, error_subtitle = "", error_message = ""):
 def check_list_not_empty(list):
     return list is not None and len(list) > 0
 
-def get_displayed_messages(text, files):
+def display_messages(text, files):
     st.markdown(text)
     if check_list_not_empty(files):
         for file in files:
@@ -91,6 +94,7 @@ def get_input_content(text, files):
             file_content = file.read()
             base64_data = base64.b64encode(file_content).decode("utf-8")
             file_data = f"data:{mime_type};base64,{base64_data}"
+            file.seek(0)
             # endregion
 
             if mime_type == "application/pdf":
@@ -122,6 +126,19 @@ def get_input_data(input_content):
         "messages": [user_message],
         "stream": True
     })
+
+def styling_user_role():
+    cssUserChat = """
+    .stChatMessage:has([data-testid="stChatMessageAvatarUser"]) {
+        display: flex;
+        flex-direction: row-reverse;
+    }
+
+    [data-testid="stChatMessageAvatarUser"] + [data-testid="stChatMessageContent"] {
+        text-align: right;
+    }
+    """
+    st.markdown(f"<style>{cssUserChat}</style>", unsafe_allow_html=True)
 # endregion
 
 if "messages" not in st.session_state:
@@ -130,7 +147,11 @@ if "messages" not in st.session_state:
 # region Displayed Messages
 for message in st.session_state.messages:
     with st.chat_message(message.get("role")):
-        get_displayed_messages(message.get("content"), message.get("files"))
+        display_messages(message.get("content"), message.get("files"))
+# endregion
+
+# region Styling the "User" role chat component into the right side
+styling_user_role()
 # endregion
 
 user_input = st.chat_input("Input your message here", accept_file="multiple", file_type=["jpg", "jpeg", "png", "pdf"])
@@ -141,7 +162,7 @@ if user_input is not None:
     input_content = get_input_content(text, files)
 
     with st.chat_message("user"):
-        get_displayed_messages(text, files)
+        display_messages(text, files)
     
     st.session_state.messages.append({
         "role": "user",
@@ -150,29 +171,33 @@ if user_input is not None:
     })
 
     # region Create a request to the server
-    timeout_occurred = False
+    exception_occurred = False
+    error_message = ""
     response = None
 
     empty_space = st.empty()
     with empty_space.container():
-        with st.status("Please wait, the AI assistant is tying a message...", expanded=True):
+        with st.status("Please wait, the AI assistant is typing a message...", expanded=True):
             try:
                 response = requests.post(
                     url=base_url,
                     headers=get_input_headers(),
                     data=get_input_data(input_content),
                     stream=True,
-                    timeout=100
                     timeout=30
                 )
             except requests.Timeout:
-                timeout_occurred = True
+                exception_occurred = True
+                error_message = "Request timed out. Please try again."
+            except requests.RequestException as e:
+                exception_occurred = True
+                error_message = str(e)
     # endregion
 
     # region Retrieve a response
-    if timeout_occurred:
+    if exception_occurred:
         empty_space.empty() # Hide Loading Component
-        display_error_message("**❌ Error**", error_message="Request timed out. Please try again.")
+        display_error_message("**❌ Error**", error_message=error_message)
     elif response is not None:
         empty_space.empty() # Hide Loading Component
 
@@ -192,17 +217,3 @@ if user_input is not None:
     else:
         empty_space.empty() # Hide Loading Component
     # endregion
-
-# region Styling the "User" role chat component into the right side
-cssUserChat = """
-.stChatMessage:has([data-testid="stChatMessageAvatarUser"]) {
-    display: flex;
-    flex-direction: row-reverse;
-}
-
-[data-testid="stChatMessageAvatarUser"] + [data-testid="stChatMessageContent"] {
-    text-align: right;
-}
-"""
-st.html(f"<style>{cssUserChat}</style>")
-# endregion
