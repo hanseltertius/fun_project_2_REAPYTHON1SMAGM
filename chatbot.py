@@ -6,8 +6,9 @@ import mimetypes
 import uuid
 
 # region Variables
-base_url = "https://openrouter.ai/api/v1/chat/completions"
-model = "openai/gpt-4.1"
+BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODEL = "openai/gpt-4.1"
+ACCEPTED_FILE_TYPES = ["jpg", "jpeg", "png", "pdf"]
 # endregion
 
 # region Methods
@@ -30,7 +31,7 @@ def generate_assistant_response(response):
                         display_error_message("**❌ Error:**", error_message=error.get("message"))
                     else:
                         choices = json_data.get("choices")
-                        if check_list_not_empty(choices):
+                        if is_list_not_empty(choices):
                             message_delta = choices[0].get("delta")
                             if "content" in message_delta:
                                 generated_response += message_delta.get("content") or ""
@@ -51,12 +52,12 @@ def display_error_message(error_title, error_subtitle = "", error_message = ""):
         {f"{error_message}\n" if error_message else ""}
     """)
 
-def check_list_not_empty(list):
+def is_list_not_empty(list):
     return list is not None and len(list) > 0
 
 def display_messages(text, files):
     st.markdown(text)
-    if check_list_not_empty(files):
+    if is_list_not_empty(files):
         for file in files:
             mime_type, _ = mimetypes.guess_type(file.name)
             if mime_type == "application/pdf":
@@ -82,7 +83,7 @@ def get_input_content(text, files):
     # endregion
 
     # region Add File to input
-    if check_list_not_empty(files):
+    if is_list_not_empty(files):
         for file in files:
             mime_type, _ = mimetypes.guess_type(file.name)
             
@@ -118,7 +119,7 @@ def get_input_headers():
 def get_input_data(input_content):
     user_message = { "role": "user", "content": input_content }
     return json.dumps({
-        "model": model,
+        "model": MODEL,
         "messages": [user_message],
         "stream": True
     })
@@ -138,7 +139,7 @@ def styling_user_role():
 # endregion
 
 st.header("💬 AI Chatbot App")
-st.markdown(f"Powered by ```{model}``` via OpenRouter 👾")
+st.markdown(f"Powered by ```{MODEL}``` via OpenRouter 👾")
 st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
 
 if "messages" not in st.session_state:
@@ -147,7 +148,7 @@ if "messages" not in st.session_state:
 # region Displayed Messages
 for message in st.session_state.messages:
     with st.chat_message(message.get("role")):
-        display_messages(message.get("content"), message.get("files"))
+        display_messages(message.get("content"), message.get("files", []))
 # endregion
 
 # region Styling the "User" role chat component into the right side
@@ -180,7 +181,7 @@ if user_input is not None:
         with st.status("Please wait, the AI assistant is typing a message...", expanded=True):
             try:
                 response = requests.post(
-                    url=base_url,
+                    url=BASE_URL,
                     headers=get_input_headers(),
                     data=get_input_data(input_content),
                     stream=True,
