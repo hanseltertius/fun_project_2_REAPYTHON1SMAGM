@@ -10,10 +10,6 @@ base_url = "https://openrouter.ai/api/v1/chat/completions"
 model = "openai/gpt-4.1"
 # endregion
 
-st.header("💬 AI Chatbot App")
-st.markdown(f"Powered by ```{model}``` via OpenRouter 👾")
-st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
-
 # region Methods
 def generate_assistant_response(response):
     stream_placeholder = st.empty()
@@ -140,6 +136,10 @@ def styling_user_role():
     """
     st.markdown(f"<style>{cssUserChat}</style>", unsafe_allow_html=True)
 # endregion
+
+st.header("💬 AI Chatbot App")
+st.markdown(f"Powered by ```{model}``` via OpenRouter 👾")
+st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
