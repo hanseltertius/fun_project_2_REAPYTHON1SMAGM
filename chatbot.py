@@ -185,3 +185,17 @@ if user_input is not None:
     else:
         empty_space.empty() # Hide Loading Component
     # endregion
+
+# region Styling the "User" role chat component into the right side
+cssUserChat = """
+.stChatMessage:has([data-testid="stChatMessageAvatarUser"]) {
+    display: flex;
+    flex-direction: row-reverse;
+}
+
+[data-testid="stChatMessageAvatarUser"] + [data-testid="stChatMessageContent"] {
+    text-align: right;
+}
+"""
+st.html(f"<style>{cssUserChat}</style>")
+# endregion
