@@ -7,7 +7,7 @@ import mimetypes
 st.header("💬 AI Chatbot App")
 
 # region Methods
-def get_generated_response(response):
+def generate_assistant_response(response):
     stream_placeholder = st.empty()
     generated_response = ""
     for line in response.iter_lines():
@@ -34,7 +34,7 @@ def get_generated_response(response):
                 except Exception as ex:
                     display_error_message("**❌ Streaming Error:**", error_message=ex)
     stream_placeholder.markdown(generated_response)
-    return generated_response
+    st.session_state.messages.append({"role": "assistant", "content": generated_response})
 
 def display_error_message(error_title, error_subtitle = "", error_message = ""):
     subtitle = f"{error_subtitle}\n" if error_subtitle else ""
@@ -136,8 +136,7 @@ if user_input is not None:
 
         if response.status_code == 200:
             with st.chat_message("assistant"):
-                generated_response = get_generated_response(response)
-                st.session_state.messages.append({"role": "assistant", "content": generated_response})
+                generate_assistant_response(response)
         else:
             error_json = json.loads(response.text)
             error = error_json.get("error")
