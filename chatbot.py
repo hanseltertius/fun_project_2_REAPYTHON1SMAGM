@@ -56,7 +56,9 @@ def is_list_not_empty(list):
     return list is not None and len(list) > 0
 
 def display_messages(text, files):
-    st.markdown(text)
+    if text:
+        st.markdown(text)
+    
     if is_list_not_empty(files):
         for file in files:
             mime_type, _ = mimetypes.guess_type(file.name)
