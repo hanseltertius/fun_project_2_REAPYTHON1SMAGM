@@ -5,8 +5,14 @@ import base64
 import mimetypes
 import uuid
 
+# region Variables
+base_url = "https://openrouter.ai/api/v1/chat/completions"
+model = "openai/gpt-4.1"
+# endregion
+
 st.header("💬 AI Chatbot App")
 st.markdown("Powered by ```google/gemini-2.5-flash-preview``` via OpenRouter 👾")
+st.markdown(f"Powered by ```{model}``` via OpenRouter 👾")
 st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
 
 # region Methods
@@ -112,7 +118,7 @@ def get_input_headers():
 def get_input_data(input_content):
     user_message = { "role": "user", "content": input_content }
     return json.dumps({
-        "model": "google/gemini-2.5-flash-preview",
+        "model": model,
         "messages": [user_message],
         "stream": True
     })
@@ -152,11 +158,12 @@ if user_input is not None:
         with st.status("Please wait, the AI assistant is tying a message...", expanded=True):
             try:
                 response = requests.post(
-                    url="https://openrouter.ai/api/v1/chat/completions",
+                    url=base_url,
                     headers=get_input_headers(),
                     data=get_input_data(input_content),
                     stream=True,
                     timeout=100
+                    timeout=30
                 )
             except requests.Timeout:
                 timeout_occurred = True
