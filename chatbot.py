@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-import time
 import base64
 import mimetypes
 
@@ -32,7 +31,6 @@ def get_generated_response(response):
                                 content = delta.get("content")
                                 generated_response += content
                                 stream_placeholder.markdown(f"{generated_response}▌")
-                                time.sleep(0.05)
                 except Exception as e:
                     display_error_message("**❌ Streaming Error:**", f"{e}")
     stream_placeholder.markdown(generated_response)
