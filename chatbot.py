@@ -13,6 +13,7 @@ st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG``
 def generate_assistant_response(response):
     stream_placeholder = st.empty()
     generated_response = ""
+    stream_placeholder.markdown("▌")
     for line in response.iter_lines():
         if line:
             decoded_line = line.decode("utf-8")
