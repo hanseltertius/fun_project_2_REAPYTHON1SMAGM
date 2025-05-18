@@ -14,17 +14,16 @@ if "messages" not in st.session_state:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        if "files" in message and message["files"]:
+            for img in message["files"]:
+                st.image(img)
 # endregion
 
-# user_input = st.chat_input("Input your message here", accept_file=True, file_type=["jpg", "jpeg", "png"])
-user_input = st.chat_input("Input your message here", accept_file=True, file_type=["jpg", "jpeg", "png"])
+user_input = st.chat_input("Input your message here", accept_file="multiple", file_type=["jpg", "jpeg", "png"])
 
 if user_input is not None:
     text = user_input.get("text")
     files = user_input.get("files")
-
-    uploaded_file = files[0] if files is not None and len(files) > 0 else None
-
     messages = []
 
     if text:
@@ -32,34 +31,35 @@ if user_input is not None:
             "type": "text",
             "text": text
         })
-    
-    # TODO : liat url / base64 nya dulu kan
-    if len(files) > 0:
-        # Determine the MIME type of the uploaded file
-        mime_type, _ = mimetypes.guess_type(uploaded_file.name)
-        
-        # Read and encode the file content to base64
-        file_content = uploaded_file.read()
-        base64_data = base64.b64encode(file_content).decode("utf-8")
-        data_url = f"data:{mime_type};base64,{base64_data}"
 
-        messages.append({
-            "type": "image_url",
-            "image_url": {
-                "url": data_url
-            }
-        })
+    # TODO : make a reusable function to get if the files list is not empty
+    if files is not None and len(files) > 0:
+        for file in files:
+            # Determine the MIME type of the uploaded file
+            mime_type, _ = mimetypes.guess_type(file.name)
+            
+            # Read and encode the file content to base64
+            file_content = file.read()
+            base64_data = base64.b64encode(file_content).decode("utf-8")
+            data_url = f"data:{mime_type};base64,{base64_data}"
+
+            messages.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": data_url
+                }
+            })
 
     user_payload = {
         "role": "user",
         "content": messages
     }
 
-    # TODO : ini jgn pake user_payload
     with st.chat_message("user"):
         st.markdown(text)
-        for file in files:
-            st.image(file)
+        if files is not None and len(files) > 0:
+            for file in files:
+                st.image(file)
     
     st.session_state.messages.append({
         "role": "user",
