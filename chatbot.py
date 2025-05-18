@@ -141,19 +141,30 @@ if user_input is not None:
         "files": files
     })
 
-    #region Generating the Loading Component
+    # region Create a request to the server
+    timeout_occurred = False
+    response = None
+
     empty_space = st.empty()
     with empty_space.container():
         with st.status("Please wait, the AI assistant is tying a message...", expanded=True):
-            response = requests.post(
-                url="https://openrouter.ai/api/v1/chat/completions",
-                headers=get_input_headers(),
-                data=get_input_data(input_content),
-                stream=True
-            )
-    #endregion
+            try:
+                response = requests.post(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers=get_input_headers(),
+                    data=get_input_data(input_content),
+                    stream=True,
+                    timeout=100
+                )
+            except requests.Timeout:
+                timeout_occurred = True
+    # endregion
 
-    if response is not None:
+    # region Retrieve a response
+    if timeout_occurred:
+        empty_space.empty() # Hide Loading Component
+        display_error_message("**❌ Error**", error_message="Request timed out. Please try again.")
+    elif response is not None:
         empty_space.empty() # Hide Loading Component
 
         if response.status_code == 200:
@@ -169,3 +180,6 @@ if user_input is not None:
             error_status_code = error.get("code")
             display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
             # endregion
+    else:
+        empty_space.empty() # Hide Loading Component
+    # endregion
