@@ -27,11 +27,10 @@ def generate_assistant_response(response):
                         display_error_message("**❌ Error:**", error_message=error.get("message"))
                     else:
                         choices = json_data.get("choices")
-                        if choices is not None and len(choices) > 0:
-                            delta = choices[0].get("delta")
-                            if "content" in delta:
-                                content = delta.get("content")
-                                generated_response += content
+                        if check_list_not_empty(choices):
+                            message_delta = choices[0].get("delta")
+                            if "content" in message_delta:
+                                generated_response += message_delta.get("content") or ""
                                 stream_placeholder.markdown(f"{generated_response}▌")
                 except Exception as ex:
                     display_error_message("**❌ Streaming Error:**", error_message=ex)
@@ -39,20 +38,18 @@ def generate_assistant_response(response):
     st.session_state.messages.append({"role": "assistant", "content": generated_response})
 
 def display_error_message(error_title, error_subtitle = "", error_message = ""):
-    subtitle = f"{error_subtitle}\n" if error_subtitle else ""
-    message = f"{error_message}\n" if error_message else ""
     st.error(f"""
         {error_title}\n
-        {subtitle}
-        {message}
+        {f"{error_subtitle}\n" if error_subtitle else ""}
+        {f"{error_message}\n" if error_message else ""}
     """)
 
-def check_files_not_empty(files):
-    return files is not None and len(files) > 0
+def check_list_not_empty(list):
+    return list is not None and len(list) > 0
 
 def get_displayed_messages(text, files):
     st.markdown(text)
-    if check_files_not_empty(files):
+    if check_list_not_empty(files):
         for file in files:
             mime_type, _ = mimetypes.guess_type(file.name)
             if mime_type == "application/pdf":
@@ -69,21 +66,24 @@ def get_displayed_messages(text, files):
 def get_input_content(text, files):
     input_content = []
 
+    # region Add Text to input
     if text:
         input_content.append({
             "type": "text",
             "text": text
         })
+    # endregion
 
-    if check_files_not_empty(files):
+    # region Add File to input
+    if check_list_not_empty(files):
         for file in files:
-            # Determine the MIME type of the uploaded file
             mime_type, _ = mimetypes.guess_type(file.name)
             
-            # Read and encode the file content to base64
+            # region Read and Encode Content to base64
             file_content = file.read()
             base64_data = base64.b64encode(file_content).decode("utf-8")
             file_data = f"data:{mime_type};base64,{base64_data}"
+            # endregion
 
             if mime_type == "application/pdf":
                 input_content.append({
@@ -100,17 +100,18 @@ def get_input_content(text, files):
                         "url": file_data
                     }
                 })
+    # endregion
 
     return input_content
     
 def get_input_headers():
-    return {"Authorization": f"Bearer {st.secrets["OPEN_ROUTER_API_KEY"]}"}
+    return {"Authorization": f"Bearer {st.secrets.get("OPEN_ROUTER_API_KEY")}"}
 
 def get_input_data(input_content):
-    payload = { "role": "user", "content": input_content }
+    user_message = { "role": "user", "content": input_content }
     return json.dumps({
         "model": "google/gemini-2.5-flash-preview",
-        "messages": [payload],
+        "messages": [user_message],
         "stream": True
     })
 # endregion
@@ -120,7 +121,7 @@ if "messages" not in st.session_state:
 
 # region Displayed Messages
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
+    with st.chat_message(message.get("role")):
         get_displayed_messages(message.get("content"), message.get("files"))
 # endregion
 
@@ -153,14 +154,18 @@ if user_input is not None:
     #endregion
 
     if response is not None:
-        empty_space.empty()
+        empty_space.empty() # Hide Loading Component
 
         if response.status_code == 200:
+            # region Show Success Response from Assistant
             with st.chat_message("assistant"):
                 generate_assistant_response(response)
+            # endregion
         else:
+            # region Show Error Response when status code retrieved from API is not succeed
             error_json = json.loads(response.text)
             error = error_json.get("error")
             error_message = error.get("message")
             error_status_code = error.get("code")
             display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
+            # endregion
