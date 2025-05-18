@@ -3,6 +3,7 @@ import requests
 import json
 import base64
 import mimetypes
+import uuid
 
 st.header("💬 AI Chatbot App")
 
@@ -52,7 +53,17 @@ def get_displayed_messages(text, files):
     st.markdown(text)
     if check_files_not_empty(files):
         for file in files:
-            st.image(file)
+            mime_type, _ = mimetypes.guess_type(file.name)
+            if mime_type == "application/pdf":
+                st.download_button(
+                    label=f"📄 Download {file.name}",
+                    data=file,
+                    file_name=file.name,
+                    mime=mime_type,
+                    key=str(uuid.uuid4())
+                )
+            else:
+                st.image(file)
 
 def get_input_content(text, files):
     input_content = []
@@ -71,14 +82,23 @@ def get_input_content(text, files):
             # Read and encode the file content to base64
             file_content = file.read()
             base64_data = base64.b64encode(file_content).decode("utf-8")
-            data_url = f"data:{mime_type};base64,{base64_data}"
+            file_data = f"data:{mime_type};base64,{base64_data}"
 
-            input_content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": data_url
-                }
-            })
+            if mime_type == "application/pdf":
+                input_content.append({
+                    "type": "file",
+                    "file": {
+                        "filename": file.name,
+                        "file_data": file_data
+                    }
+                })
+            else:
+                input_content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": file_data
+                    }
+                })
 
     return input_content
     
@@ -103,7 +123,7 @@ for message in st.session_state.messages:
         get_displayed_messages(message.get("content"), message.get("files"))
 # endregion
 
-user_input = st.chat_input("Input your message here", accept_file="multiple", file_type=["jpg", "jpeg", "png"])
+user_input = st.chat_input("Input your message here", accept_file="multiple", file_type=["jpg", "jpeg", "png", "pdf"])
 
 if user_input is not None:
     text = user_input.get("text")
