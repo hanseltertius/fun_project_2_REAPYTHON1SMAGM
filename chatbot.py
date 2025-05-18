@@ -7,6 +7,7 @@ import uuid
 
 st.header("💬 AI Chatbot App")
 st.markdown("Powered by ```google/gemini-2.5-flash-preview``` via OpenRouter 👾")
+st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF```")
 
 # region Methods
 def generate_assistant_response(response):
