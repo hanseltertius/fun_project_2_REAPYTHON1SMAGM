@@ -161,62 +161,67 @@ user_input = st.chat_input("Input your message here", accept_file="multiple", fi
 
 if user_input is not None:
     text = user_input.get("text")
-    files = user_input.get("files")
-    input_content = get_input_content(text, files)
+    files = user_input.get("files", [])
 
-    with st.chat_message("user"):
-        display_messages(text, files)
-    
-    st.session_state.messages.append({
-        "role": "user",
-        "content": text,
-        "files": files
-    })
-
-    # region Create a request to the server
-    exception_occurred = False
-    error_message = ""
-    response = None
-
-    empty_space = st.empty()
-    with empty_space.container():
-        with st.status("Please wait, the AI assistant is typing a message...", expanded=True):
-            try:
-                response = requests.post(
-                    url=BASE_URL,
-                    headers=get_input_headers(),
-                    data=get_input_data(input_content),
-                    stream=True,
-                    timeout=30
-                )
-            except requests.Timeout:
-                exception_occurred = True
-                error_message = "Request timed out. Please try again."
-            except requests.RequestException as e:
-                exception_occurred = True
-                error_message = str(e)
-    # endregion
-
-    # region Retrieve a response
-    if exception_occurred:
-        empty_space.empty() # Hide Loading Component
-        display_error_message("**❌ Error**", error_message=error_message)
-    elif response is not None:
-        empty_space.empty() # Hide Loading Component
-
-        if response.status_code == 200:
-            # region Show Success Response from Assistant
-            with st.chat_message("assistant"):
-                generate_assistant_response(response)
-            # endregion
-        else:
-            # region Show Error Response when status code retrieved from API is not succeed
-            error_json = json.loads(response.text)
-            error = error_json.get("error")
-            error_message = error.get("message")
-            error_status_code = error.get("code")
-            display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
-            # endregion
+    if not text and not files:
+        # Happens when we tried to send the message, specifically when we uploaded invalid file type from drag and drop as Streamlit filters out invalid file types.
+        display_error_message("**❌ Error**", error_message="Please enter a message or upload a file before sending.")
     else:
-        empty_space.empty() # Hide Loading Component
-    # endregion
+        input_content = get_input_content(text, files)
+
+        with st.chat_message("user"):
+            display_messages(text, files)
+        
+        st.session_state.messages.append({
+            "role": "user",
+            "content": text,
+            "files": files
+        })
+
+        # region Create a request to the server
+        exception_occurred = False
+        error_message = ""
+        response = None
+
+        empty_space = st.empty()
+        with empty_space.container():
+            with st.status("Please wait, the AI assistant is typing a message...", expanded=True):
+                try:
+                    response = requests.post(
+                        url=BASE_URL,
+                        headers=get_input_headers(),
+                        data=get_input_data(input_content),
+                        stream=True,
+                        timeout=30
+                    )
+                except requests.Timeout:
+                    exception_occurred = True
+                    error_message = "Request timed out. Please try again."
+                except requests.RequestException as e:
+                    exception_occurred = True
+                    error_message = str(e)
+        # endregion
+
+        # region Retrieve a response
+        if exception_occurred:
+            empty_space.empty() # Hide Loading Component
+            display_error_message("**❌ Error**", error_message=error_message)
+        elif response is not None:
+            empty_space.empty() # Hide Loading Component
+
+            if response.status_code == 200:
+                # region Show Success Response from Assistant
+                with st.chat_message("assistant"):
+                    generate_assistant_response(response)
+                # endregion
+            else:
+                # region Show Error Response when status code retrieved from API is not succeed
+                error_json = json.loads(response.text)
+                error = error_json.get("error")
+                error_message = error.get("message")
+                error_status_code = error.get("code")
+                display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
+                # endregion
+        else:
+            empty_space.empty() # Hide Loading Component
+        # endregion
