@@ -1,3 +1,4 @@
+import datetime
 import streamlit as st
 import requests
 import json
@@ -13,9 +14,17 @@ ACCEPTED_FILE_TYPES = ["jpg", "jpeg", "png", "pdf"]
 
 # region Methods
 def generate_assistant_response(response):
-    stream_placeholder = st.empty()
+    # region Timestamp Information
+    timestamp_placeholder = st.empty()
+    name = "AI Assistant"
+    timestamp = datetime.datetime.now()
+    timestamp_placeholder.markdown(get_timestamp_string(name, timestamp))
+    # endregion
+
+    # region Message Information
     generated_response = ""
-    stream_placeholder.markdown("▌")
+    message_placeholder = st.empty()
+    message_placeholder.markdown("▌")
     for line in response.iter_lines():
         if line:
             decoded_line = line.decode("utf-8")
@@ -35,15 +44,16 @@ def generate_assistant_response(response):
                             message_delta = choices[0].get("delta")
                             if "content" in message_delta:
                                 generated_response += message_delta.get("content") or ""
-                                stream_placeholder.markdown(f"{generated_response}▌")
+                                message_placeholder.markdown(f"{generated_response}▌")
                 except json.JSONDecodeError as ex:
                     display_error_message("**❌ Streaming Error:**", error_message=f"JSON decode error: {ex}")
                 except KeyError as ex:
                     display_error_message("**❌ Streaming Error:**", error_message=f"Missing key: {ex}")
                 except Exception as ex:
                     display_error_message("**❌ Streaming Error:**", error_message=str(ex))
-    stream_placeholder.markdown(generated_response)
-    st.session_state.messages.append({"role": "assistant", "content": generated_response})
+    message_placeholder.markdown(generated_response)
+    st.session_state.messages.append({"role": "assistant", "content": generated_response, "name": name, "timestamp": timestamp})
+    # endregion
 
 def display_error_message(error_title, error_subtitle = "", error_message = ""):
     st.error(f"""
@@ -55,10 +65,17 @@ def display_error_message(error_title, error_subtitle = "", error_message = ""):
 def is_list_not_empty(list):
     return list is not None and len(list) > 0
 
-def display_messages(text, files):
+def display_messages(text, files, name, timestamp):
+    # region Timestamp Information
+    st.markdown(get_timestamp_string(name, timestamp))
+    # endregion
+
+    # region Text Information
     if text:
         st.markdown(text)
+    # endregion
     
+    # region File Information
     if is_list_not_empty(files):
         for file in files:
             mime_type, _ = mimetypes.guess_type(file.name)
@@ -72,6 +89,7 @@ def display_messages(text, files):
                 )
             else:
                 st.image(file)
+    # endregion
 
 def get_input_content(text, files):
     input_content = []
@@ -138,6 +156,9 @@ def styling_user_role():
     }
     """
     st.markdown(f"<style>{cssUserChat}</style>", unsafe_allow_html=True)
+
+def get_timestamp_string(name, timestamp):
+    return f"**{name} - {timestamp.strftime("%A, %d %B %Y %H.%M.%S")}**"
 # endregion
 
 st.header("💬 AI Chatbot App")
@@ -150,7 +171,7 @@ if "messages" not in st.session_state:
 # region Displayed Messages
 for message in st.session_state.messages:
     with st.chat_message(message.get("role")):
-        display_messages(message.get("content"), message.get("files", []))
+        display_messages(message.get("content"), message.get("files", []), message.get("name"), message.get("timestamp"))
 # endregion
 
 # region Styling the "User" role chat component into the right side
@@ -169,13 +190,18 @@ if user_input is not None:
     else:
         input_content = get_input_content(text, files)
 
+        name = "User"
+        timestamp = datetime.datetime.now()
+
         with st.chat_message("user"):
-            display_messages(text, files)
+            display_messages(text, files, name, timestamp)
         
         st.session_state.messages.append({
             "role": "user",
             "content": text,
-            "files": files
+            "files": files,
+            "name": name,
+            "timestamp": timestamp
         })
 
         # region Create a request to the server
