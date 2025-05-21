@@ -146,12 +146,8 @@ def get_input_data(input_content):
 
 def styling_user_role():
     cssUserChat = """
-    .stChatMessage:has([data-testid="stChatMessageAvatarUser"]) {
-        display: flex;
+    [class*="st-key-user"] .stChatMessage {
         flex-direction: row-reverse;
-    }
-
-    [data-testid="stChatMessageAvatarUser"] + [data-testid="stChatMessageContent"] {
         text-align: right;
     }
     """
@@ -159,6 +155,9 @@ def styling_user_role():
 
 def get_timestamp_string(name, timestamp):
     return f"**{name} - {timestamp.strftime("%A, %d %B %Y %H.%M.%S")}**"
+
+def get_role_avatar(role):
+    return "assets/user.png" if role == "user" else "assets/ai_assistant.png"
 # endregion
 
 st.header("💬 AI Chatbot App")
@@ -170,8 +169,10 @@ if "messages" not in st.session_state:
 
 # region Displayed Messages
 for message in st.session_state.messages:
-    with st.chat_message(message.get("role")):
-        display_messages(message.get("content"), message.get("files", []), message.get("name"), message.get("timestamp"))
+    role = message.get("role")
+    with st.container(key=f"{role}-{str(uuid.uuid4())}"):
+        with st.chat_message(role, avatar=get_role_avatar(role)):
+            display_messages(message.get("content"), message.get("files", []), message.get("name"), message.get("timestamp"))
 # endregion
 
 # region Styling the "User" role chat component into the right side
@@ -193,11 +194,13 @@ if user_input is not None:
         name = "User"
         timestamp = datetime.datetime.now()
 
-        with st.chat_message("user"):
-            display_messages(text, files, name, timestamp)
+        role = "user"
+        with st.container(key=f"{role}-{str(uuid.uuid4())}"):
+            with st.chat_message(role, avatar=get_role_avatar(role)):
+                display_messages(text, files, name, timestamp)
         
         st.session_state.messages.append({
-            "role": "user",
+            "role": role,
             "content": text,
             "files": files,
             "name": name,
@@ -237,8 +240,10 @@ if user_input is not None:
 
             if response.status_code == 200:
                 # region Show Success Response from Assistant
-                with st.chat_message("assistant"):
-                    generate_assistant_response(response)
+                role = "assistant"
+                with st.container(key=f"{role}-{str(uuid.uuid4())}"):
+                    with st.chat_message(role, avatar=get_role_avatar(role)):
+                        generate_assistant_response(response)
                 # endregion
             else:
                 # region Show Error Response when status code retrieved from API is not succeed
