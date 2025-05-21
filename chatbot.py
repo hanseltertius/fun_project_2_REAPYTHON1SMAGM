@@ -23,13 +23,15 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # region Methods
+def get_timestamp():
+    user_tz = pytz.timezone(timezone)
+    return datetime.datetime.now(user_tz)
+
 def generate_assistant_response(response):
     # region Timestamp Information
     timestamp_placeholder = st.empty()
     name = "AI Assistant"
-    user_tz = pytz.timezone(timezone)
-    timestamp = datetime.datetime.now(user_tz)
-    timestamp_placeholder.markdown(get_timestamp_string(name, timestamp))
+    timestamp_placeholder.markdown(get_timestamp_string(name, get_timestamp()))
     # endregion
 
     # region Message Information
@@ -201,10 +203,8 @@ if user_input is not None:
         input_content = get_input_content(text, files)
 
         name = "User"
-        user_tz = pytz.timezone(timezone)
-        timestamp = datetime.datetime.now(user_tz)
-
         role = "user"
+        timestamp = get_timestamp()
         with st.container(key=f"{role}-{str(uuid.uuid4())}"):
             with st.chat_message(role, avatar=get_role_avatar(role)):
                 display_messages(text, files, name, timestamp)
