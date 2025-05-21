@@ -2,7 +2,6 @@ import datetime
 import streamlit as st
 from streamlit_javascript import st_javascript
 import pytz
-import streamlit.components.v1 as components
 import requests
 import json
 import base64
