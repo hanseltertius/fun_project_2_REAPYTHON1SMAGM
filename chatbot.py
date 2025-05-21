@@ -1,5 +1,8 @@
 import datetime
 import streamlit as st
+from streamlit_javascript import st_javascript
+import pytz
+import streamlit.components.v1 as components
 import requests
 import json
 import base64
@@ -10,14 +13,23 @@ import uuid
 BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-4.1"
 ACCEPTED_FILE_TYPES = ["jpg", "jpeg", "png", "pdf"]
+
+timezone = st_javascript("""await (async () => {
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            return userTimezone
+})().then(returnValue => returnValue)""")
 # endregion
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # region Methods
 def generate_assistant_response(response):
     # region Timestamp Information
     timestamp_placeholder = st.empty()
     name = "AI Assistant"
-    timestamp = datetime.datetime.now()
+    user_tz = pytz.timezone(timezone)
+    timestamp = datetime.datetime.now(user_tz)
     timestamp_placeholder.markdown(get_timestamp_string(name, timestamp))
     # endregion
 
@@ -56,11 +68,12 @@ def generate_assistant_response(response):
     # endregion
 
 def display_error_message(error_title, error_subtitle = "", error_message = ""):
-    st.error(f"""
-        {error_title}\n
-        {f"{error_subtitle}\n" if error_subtitle else ""}
-        {f"{error_message}\n" if error_message else ""}
-    """)
+    msg = error_title
+    if error_subtitle:
+        msg += f"\n{error_subtitle}"
+    if error_message:
+        msg += f"\n{error_message}"
+    st.error(msg)
 
 def is_list_not_empty(list):
     return list is not None and len(list) > 0
@@ -134,7 +147,7 @@ def get_input_content(text, files):
     return input_content
     
 def get_input_headers():
-    return {"Authorization": f"Bearer {st.secrets.get("OPEN_ROUTER_API_KEY")}"}
+    return {"Authorization": f"Bearer {st.secrets.get('OPEN_ROUTER_API_KEY')}"}
 
 def get_input_data(input_content):
     user_message = { "role": "user", "content": input_content }
@@ -154,7 +167,7 @@ def styling_user_role():
     st.markdown(f"<style>{cssUserChat}</style>", unsafe_allow_html=True)
 
 def get_timestamp_string(name, timestamp):
-    return f"**{name} - {timestamp.strftime("%A, %d %B %Y %H.%M.%S")}**"
+    return f"**{name} - {timestamp.strftime('%A, %d %B %Y %H.%M.%S %Z')}**"
 
 def get_role_avatar(role):
     return "assets/user.png" if role == "user" else "assets/ai_assistant.png"
@@ -163,9 +176,6 @@ def get_role_avatar(role):
 st.header("💬 AI Chatbot App")
 st.markdown(f"Powered by ```{MODEL}``` via OpenRouter 👾")
 st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 
 # region Displayed Messages
 for message in st.session_state.messages:
@@ -192,7 +202,8 @@ if user_input is not None:
         input_content = get_input_content(text, files)
 
         name = "User"
-        timestamp = datetime.datetime.now()
+        user_tz = pytz.timezone(timezone)
+        timestamp = datetime.datetime.now(user_tz)
 
         role = "user"
         with st.container(key=f"{role}-{str(uuid.uuid4())}"):
