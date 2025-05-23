@@ -7,6 +7,8 @@ import json
 import base64
 import mimetypes
 import uuid
+import io
+from db.chat_history import save_message, fetch_chat_history, create_session, get_sessions
 
 # region Variables
 BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -25,13 +27,14 @@ if "messages" not in st.session_state:
 # region Methods
 def get_timestamp():
     user_tz = pytz.timezone(timezone)
-    return datetime.datetime.now(user_tz)
+    return datetime.datetime.now(user_tz).isoformat()
 
 def generate_assistant_response(response):
     # region Timestamp Information
     timestamp_placeholder = st.empty()
     name = "AI Assistant"
-    timestamp_placeholder.markdown(get_timestamp_string(name, get_timestamp()))
+    timestamp = get_timestamp()
+    timestamp_placeholder.markdown(get_timestamp_string(name, timestamp))
     # endregion
 
     # region Message Information
@@ -66,6 +69,7 @@ def generate_assistant_response(response):
                     display_error_message("**❌ Streaming Error:**", error_message=str(ex))
     message_placeholder.markdown(generated_response)
     st.session_state.messages.append({"role": "assistant", "content": generated_response, "name": name, "timestamp": timestamp})
+    save_message(session_id, "assistant", name, generated_response, timestamp)
     # endregion
 
 def display_error_message(error_title, error_subtitle = "", error_message = ""):
@@ -91,19 +95,44 @@ def display_messages(text, files, name, timestamp):
     
     # region File Information
     if is_list_not_empty(files):
-        for file in files:
-            mime_type, _ = mimetypes.guess_type(file.name)
-            if mime_type == "application/pdf":
+        display_files(files)
+    # endregion
+
+def display_files(files):
+    for file in files:
+        if isinstance(file, dict):
+            # region If file is from DB / history
+            filename = file.get("name")
+            mimetype = file.get("mimetype")
+            data = file.get("data")
+            if mimetype and mimetype.startswith("image/"):
+                img_bytes = base64.b64decode(data)
+                st.image(io.BytesIO(img_bytes), caption=filename)
+            else:
                 st.download_button(
-                    label=f"📄 Download {file.name}",
-                    data=file,
-                    file_name=file.name,
-                    mime=mime_type,
+                    label=f"Download {filename}",
+                    data=base64.b64decode(data),
+                    file_name=filename,
+                    mime=mimetype,
                     key=str(uuid.uuid4())
                 )
+            # endregion
+        else:
+            # region If file is from File Upload
+            filename = file.name
+            mimetype = file.type
+            file_data = file.getvalue()
+            if mimetype and mimetype.startswith("image/"):
+                st.image(io.BytesIO(file_data), caption=filename)
             else:
-                st.image(file)
-    # endregion
+                st.download_button(
+                    label=f"Download {filename}",
+                    data=file_data,
+                    file_name=filename,
+                    mime=mimetype,
+                    key=str(uuid.uuid4())
+                )
+            # endregion
 
 def get_input_content(text, files):
     input_content = []
@@ -168,12 +197,57 @@ def styling_user_role():
     st.markdown(f"<style>{cssUserChat}</style>", unsafe_allow_html=True)
 
 def get_timestamp_string(name, timestamp):
+    if isinstance(timestamp, str):
+        # Parse ISO string to datetime object
+        timestamp = datetime.datetime.fromisoformat(timestamp)
     return f"**{name} - {timestamp.strftime('%A, %d %B %Y %H.%M.%S %Z')}**"
 
 def get_role_avatar(role):
     return "assets/user.png" if role == "user" else "assets/ai_assistant.png"
 # endregion
 
+# region Sidebar
+# region Session Selection / Creation
+sessions = get_sessions()
+session_names = [name for (sid, name) in sessions]
+session_ids = [sid for (sid, name) in sessions]
+
+st.sidebar.header("Chat Sessions")
+selected = st.sidebar.selectbox("Select session", session_names + ["➕ New session"])
+
+if selected == "➕ New session" or not sessions:
+    new_session_name = st.sidebar.text_input("New session name")
+    if st.sidebar.button("Start Session") and new_session_name:
+        session_id = create_session(new_session_name, get_timestamp())
+        st.session_state.session_id = session_id
+        st.rerun()
+    elif sessions:
+        st.session_state.session_id = session_ids[0]
+else:
+    idx = session_names.index(selected)
+    st.session_state.session_id = session_ids[idx]
+# endregion
+
+# region Load messages for the current session
+session_id = st.session_state.get("session_id")
+if session_id:
+    st.session_state.messages = fetch_chat_history(session_id)
+else:
+    st.session_state.messages = []
+# endregion
+
+# region Show only session names in sidebar
+def fetch_and_display_history():
+    st.sidebar.subheader("All Sessions")
+    for name in session_names:
+        st.sidebar.markdown(f"- {name}")
+# endregion
+
+fetch_and_display_history()
+
+# endregion
+
+# region Main Chat UI
 st.header("💬 AI Chatbot App")
 st.markdown(f"Powered by ```{MODEL}``` via OpenRouter 👾")
 st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
@@ -212,10 +286,17 @@ if user_input is not None:
         st.session_state.messages.append({
             "role": role,
             "content": text,
-            "files": files,
+            "files": [
+                {
+                    "name": file.name,
+                    "mimetype": file.type,
+                    "data": base64.b64encode(file.getvalue()).decode("utf-8")
+                } for file in files
+            ] if files else [],
             "name": name,
             "timestamp": timestamp
         })
+        save_message(session_id, "user", name, text, timestamp, files)
 
         # region Create a request to the server
         exception_occurred = False
@@ -266,3 +347,4 @@ if user_input is not None:
         else:
             empty_space.empty() # Hide Loading Component
         # endregion
+# endregion
