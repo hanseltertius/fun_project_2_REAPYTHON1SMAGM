@@ -52,7 +52,7 @@ def get_sessions():
     conn.close()
     return sessions
 
-def save_message(session_id, role, name, content, timestamp=None, files=None):
+def save_message_into_session(session_id, role, name, content, timestamp=None, files=None):
     files_json = None
     if files:
         # files: list of file-like objects (from Streamlit uploader)
