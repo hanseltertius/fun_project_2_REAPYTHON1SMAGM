@@ -27,6 +27,12 @@ if "new_chat" not in st.session_state:
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+if "create_new_session_error_message" not in st.session_state:
+    st.session_state.create_new_session_error_message = ""
+
+if "session_name_error" not in st.session_state:
+    st.session_state.session_name_error = False
 # endregion
 
 # region Methods
@@ -244,22 +250,33 @@ else:
 # region Session Selector
 if st.session_state.new_chat or not sessions:
     new_session_name = st.sidebar.text_input("Session name", key="new_session_name")
-    if "session_name_error" not in st.session_state:
-        st.session_state.session_name_error = False
 
     if st.session_state.session_name_error:
-        st.sidebar.error("Session name must not be empty.")
+        st.sidebar.error(st.session_state.create_new_session_error_message)
     
     if st.sidebar.button("📝 Create Session", key="create_session", use_container_width=True):
         if new_session_name:
-            session_id = create_session(new_session_name, get_timestamp())
-            st.session_state.session_id = session_id
-            st.session_state.new_chat = False
-            st.session_state.session_name_error = False
-            st.rerun()
+            if new_session_name in session_names:
+                # region Check if session name already exists
+                st.session_state.create_new_session_error_message = "Session name already exists. Please choose a different name."
+                st.session_state.session_name_error = True
+                st.rerun()
+                # endregion
+            else:
+                # region Create a new session
+                session_id = create_session(new_session_name, get_timestamp())
+                st.session_state.create_new_session_error_message = ""
+                st.session_state.session_id = session_id
+                st.session_state.new_chat = False
+                st.session_state.session_name_error = False
+                st.rerun()
+                # endregion
         else:
+            # region Error message for empty session input name
+            st.session_state.create_new_session_error_message = "Session name must not be empty."
             st.session_state.session_name_error = True
             st.rerun()
+            # endregion
     elif sessions and not st.session_state.new_chat:
         st.session_state.session_id = session_ids[0]
 else:
