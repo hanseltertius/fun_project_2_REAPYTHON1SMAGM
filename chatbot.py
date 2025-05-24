@@ -323,10 +323,14 @@ if len(sessions) > 0:
     if st.session_state.new_session:
         if st.sidebar.button("⬅️ Back", key="back_to_sessions", use_container_width=True):
             st.session_state.new_session = False
+            st.session_state.create_new_session_error_message = ""
+            st.session_state.session_name_error = False
             st.rerun()
     else:
         if st.sidebar.button("➕ New chat", use_container_width=True):
             st.session_state.new_session = True
+            st.session_state.create_new_session_error_message = ""
+            st.session_state.session_name_error = False
             st.rerun()
 else:
     st.session_state.new_session = st.session_state.get("new_session", False)
