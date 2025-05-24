@@ -300,6 +300,40 @@ def generate_chat_input(text, files):
 
 def on_session_change():
     st.session_state.session_changed = True
+    
+def on_create_session(new_session_name, is_input_chat=False):
+    if new_session_name:
+        if new_session_name in session_names:
+            # region Check if session name already exists
+            st.session_state.create_new_session_error_message = "Session name already exists. Please choose a different name."
+            st.session_state.session_name_error = True
+            st.rerun()
+            # endregion
+        else:
+            # region Create a new session
+            session_id = create_session(new_session_name, get_timestamp())
+            st.session_state.create_new_session_error_message = ""
+            st.session_state.session_id = session_id
+            st.session_state.new_session = False
+            st.session_state.session_name_error = False
+            
+            if is_input_chat:
+                # region Sending messages
+                st.session_state.messages = []
+                st.session_state.pending_message = {
+                    "text": text,
+                    "files": files
+                }
+                # endregion
+            
+            st.rerun()
+            # endregion
+    else:
+        # region Error message for empty session input name
+        st.session_state.create_new_session_error_message = "Session name must not be empty."
+        st.session_state.session_name_error = True
+        st.rerun()
+        # endregion
 # endregion
 
 # region Sidebar
@@ -333,7 +367,7 @@ if len(sessions) > 0:
             st.session_state.session_name_error = False
             st.rerun()
 else:
-    st.session_state.new_session = st.session_state.get("new_session", False)
+    st.session_state.new_session = True
 # endregion
 
 # region Session Selector
@@ -344,28 +378,7 @@ if st.session_state.new_session or not sessions:
         st.sidebar.error(st.session_state.create_new_session_error_message)
     
     if st.sidebar.button("📝 Create Session", key="create_session", use_container_width=True):
-        if new_session_name:
-            if new_session_name in session_names:
-                # region Check if session name already exists
-                st.session_state.create_new_session_error_message = "Session name already exists. Please choose a different name."
-                st.session_state.session_name_error = True
-                st.rerun()
-                # endregion
-            else:
-                # region Create a new session
-                session_id = create_session(new_session_name, get_timestamp())
-                st.session_state.create_new_session_error_message = ""
-                st.session_state.session_id = session_id
-                st.session_state.new_session = False
-                st.session_state.session_name_error = False
-                st.rerun()
-                # endregion
-        else:
-            # region Error message for empty session input name
-            st.session_state.create_new_session_error_message = "Session name must not be empty."
-            st.session_state.session_name_error = True
-            st.rerun()
-            # endregion
+        on_create_session(new_session_name)
     elif sessions and not st.session_state.new_session:
         st.session_state.session_id = session_ids[0]
 else:
@@ -428,35 +441,8 @@ if user_input is not None:
     else:
         # region Handle New Session Creation on chat input
         if st.session_state.new_session:
-            new_session_name = st.session_state.get("new_session_name", "")
-            session_timestamp = get_timestamp()
-            if not new_session_name:
-                new_session_name = f"Session created at {format_timestamp(session_timestamp)}"
-
-            if new_session_name in session_names:
-                # region Duplicate session names
-                st.session_state.create_new_session_error_message = "Session name already exists. Please choose a different name."
-                st.session_state.session_name_error = True
-                st.rerun()
-                # endregion
-            else:
-                # region Create a new session
-                session_id = create_session(new_session_name, session_timestamp)
-                # region Session creation
-                st.session_state.session_id = session_id
-                st.session_state.new_session = False
-                st.session_state.session_name_error = False
-                st.session_state.create_new_session_error_message = ""
-                # endregion
-                # region Sending messages
-                st.session_state.messages = []
-                st.session_state.pending_message = {
-                    "text": text,
-                    "files": files
-                }
-                st.rerun() # Reset the state of new session creation
-                # endregion
-                # endregion
+            new_session_name = st.session_state.get("new_session_name")
+            on_create_session(new_session_name, is_input_chat=True)
         # endregion
 
         generate_chat_input(text, files)
