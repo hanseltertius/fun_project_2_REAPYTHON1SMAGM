@@ -218,16 +218,23 @@ sessions = get_sessions()
 session_names = [name for (_, name) in sessions]
 session_ids = [sid for (sid, _) in sessions]
 
-st.sidebar.header("Chat Sessions")
+# region Sidebar Header
+st.sidebar.title("💬 AI Chatbot App")
+st.sidebar.markdown(f"Powered by ```{MODEL}``` via OpenRouter 👾")
+st.sidebar.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
+# endregion
+
+# region Sidebar Session
+st.sidebar.subheader("Chat Sessions")
 
 # region New Chat Button
 if len(sessions) > 0:
     if st.session_state.new_chat:
-        if st.sidebar.button("⬅️ Back", key="back_to_sessions"):
+        if st.sidebar.button("⬅️ Back", key="back_to_sessions", use_container_width=True):
             st.session_state.new_chat = False
             st.rerun()
     else:
-        if st.sidebar.button("➕ New chat"):
+        if st.sidebar.button("➕ New chat", use_container_width=True):
             st.session_state.new_chat = True
             st.rerun()
 else:
@@ -243,7 +250,7 @@ if st.session_state.new_chat or not sessions:
     if st.session_state.session_name_error:
         st.sidebar.error("Session name must not be empty.")
     
-    if st.sidebar.button("📝 Create Session", key="create_session"):
+    if st.sidebar.button("📝 Create Session", key="create_session", use_container_width=True):
         if new_session_name:
             session_id = create_session(new_session_name, get_timestamp())
             st.session_state.session_id = session_id
@@ -266,8 +273,6 @@ else:
     st.session_state.session_id = session_ids[selected_idx]
 # endregion
 
-# endregion
-
 # region Load messages for the current session
 session_id = st.session_state.get("session_id")
 if session_id:
@@ -279,9 +284,6 @@ else:
 # endregion
 
 # region Main Chat UI
-st.header("💬 AI Chatbot App")
-st.markdown(f"Powered by ```{MODEL}``` via OpenRouter 👾")
-st.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, ```PNG```, ```PDF``` and we can upload multiple files.")
 
 # region Displayed Messages
 for message in st.session_state.messages:
