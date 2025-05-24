@@ -300,6 +300,10 @@ def generate_chat_input(text, files):
 
 def on_session_change():
     st.session_state.session_changed = True
+
+def on_session_name_input_change():
+    st.session_state.add_new_session_error_message = ""
+    st.session_state.session_name_error = False
     
 def on_create_session(new_session_name, is_input_chat=False):
     if new_session_name:
@@ -372,7 +376,7 @@ else:
 
 # region Session Selector
 if st.session_state.new_session or not sessions:
-    new_session_name = st.sidebar.text_input("Session name", key="new_session_name")
+    new_session_name = st.sidebar.text_input("Session name", key="new_session_name", on_change=on_session_name_input_change)
 
     if st.session_state.session_name_error:
         st.sidebar.error(st.session_state.create_new_session_error_message)
