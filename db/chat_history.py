@@ -91,5 +91,3 @@ def fetch_chat_history(session_id):
         } 
         for r, n, c, f, t in rows
     ]
-
-init_db()

@@ -8,7 +8,7 @@ import base64
 import mimetypes
 import uuid
 import io
-from db.chat_history import save_message, fetch_chat_history, create_session, get_sessions
+from db.chat_history import init_db, save_message, fetch_chat_history, create_session, get_sessions
 
 # region Variables
 BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -21,8 +21,13 @@ timezone = st_javascript("""await (async () => {
 })().then(returnValue => returnValue)""")
 # endregion
 
+# region State Initialization
+if "new_chat" not in st.session_state:
+    st.session_state.new_chat = False
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
+# endregion
 
 # region Methods
 def get_timestamp():
@@ -208,24 +213,59 @@ def get_role_avatar(role):
 
 # region Sidebar
 # region Session Selection / Creation
+init_db()
 sessions = get_sessions()
-session_names = [name for (sid, name) in sessions]
-session_ids = [sid for (sid, name) in sessions]
+session_names = [name for (_, name) in sessions]
+session_ids = [sid for (sid, _) in sessions]
 
 st.sidebar.header("Chat Sessions")
-selected = st.sidebar.selectbox("Select session", session_names + ["➕ New session"])
 
-if selected == "➕ New session" or not sessions:
-    new_session_name = st.sidebar.text_input("New session name")
-    if st.sidebar.button("Start Session") and new_session_name:
-        session_id = create_session(new_session_name, get_timestamp())
-        st.session_state.session_id = session_id
-        st.rerun()
-    elif sessions:
+# region New Chat Button
+if len(sessions) > 0:
+    if st.session_state.new_chat:
+        if st.sidebar.button("⬅️ Back", key="back_to_sessions"):
+            st.session_state.new_chat = False
+            st.rerun()
+    else:
+        if st.sidebar.button("➕ New chat"):
+            st.session_state.new_chat = True
+            st.rerun()
+else:
+    st.session_state.new_chat = st.session_state.get("new_chat", False)
+# endregion
+
+# region Session Selector
+if st.session_state.new_chat or not sessions:
+    new_session_name = st.sidebar.text_input("Session name", key="new_session_name")
+    if "session_name_error" not in st.session_state:
+        st.session_state.session_name_error = False
+
+    if st.session_state.session_name_error:
+        st.sidebar.error("Session name must not be empty.")
+    
+    if st.sidebar.button("📝 Create Session", key="create_session"):
+        if new_session_name:
+            session_id = create_session(new_session_name, get_timestamp())
+            st.session_state.session_id = session_id
+            st.session_state.new_chat = False
+            st.session_state.session_name_error = False
+            st.rerun()
+        else:
+            st.session_state.session_name_error = True
+            st.rerun()
+    elif sessions and not st.session_state.new_chat:
         st.session_state.session_id = session_ids[0]
 else:
-    idx = session_names.index(selected)
-    st.session_state.session_id = session_ids[idx]
+    selected_idx = st.sidebar.radio(
+        "Select a session",
+        options=list(range(len(session_names))),
+        format_func=lambda i: session_names[i],
+        index=session_ids.index(st.session_state.get("session_id", session_ids[0])) if session_ids else 0,
+        key="session_radio"
+    )
+    st.session_state.session_id = session_ids[selected_idx]
+# endregion
+
 # endregion
 
 # region Load messages for the current session
@@ -235,15 +275,6 @@ if session_id:
 else:
     st.session_state.messages = []
 # endregion
-
-# region Show only session names in sidebar
-def fetch_and_display_history():
-    st.sidebar.subheader("All Sessions")
-    for name in session_names:
-        st.sidebar.markdown(f"- {name}")
-# endregion
-
-fetch_and_display_history()
 
 # endregion
 
