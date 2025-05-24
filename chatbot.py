@@ -33,6 +33,9 @@ if "create_new_session_error_message" not in st.session_state:
 
 if "session_name_error" not in st.session_state:
     st.session_state.session_name_error = False
+
+if "session_changed" not in st.session_state:
+    st.session_state.session_changed = False
 # endregion
 
 # region Methods
@@ -294,6 +297,9 @@ def generate_chat_input(text, files):
     else:
         empty_space.empty() # Hide Loading Component
     # endregion
+
+def on_session_change():
+    st.session_state.session_changed = True
 # endregion
 
 # region Sidebar
@@ -364,9 +370,15 @@ else:
         options=list(range(len(session_names))),
         format_func=lambda i: session_names[i],
         index=session_ids.index(st.session_state.get("session_id", session_ids[0])) if session_ids else 0,
-        key="session_radio"
+        key="session_radio",
+        on_change=on_session_change
     )
+    # region Handle Session Selection Change
     st.session_state.session_id = session_ids[selected_idx]
+    if st.session_state.get("session_changed"):
+        st.session_state.session_changed = False
+        st.rerun()
+    # endregion
 # endregion
 
 # region Load messages for the current session
