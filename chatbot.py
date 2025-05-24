@@ -8,7 +8,7 @@ import base64
 import mimetypes
 import uuid
 import io
-from db.chat_history import init_db, save_message, fetch_chat_history, create_session, get_sessions
+from db.chat_history import init_db, save_message_into_session, fetch_chat_history, create_session, get_sessions
 
 # region Variables
 BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -22,8 +22,8 @@ timezone = st_javascript("""await (async () => {
 # endregion
 
 # region State Initialization
-if "new_chat" not in st.session_state:
-    st.session_state.new_chat = False
+if "new_session" not in st.session_state:
+    st.session_state.new_session = False
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -80,7 +80,7 @@ def generate_assistant_response(response):
                     display_error_message("**❌ Streaming Error:**", error_message=str(ex))
     message_placeholder.markdown(generated_response)
     st.session_state.messages.append({"role": "assistant", "content": generated_response, "name": name, "timestamp": timestamp})
-    save_message(session_id, "assistant", name, generated_response, timestamp)
+    save_message_into_session(session_id, "assistant", name, generated_response, timestamp)
     # endregion
 
 def display_error_message(error_title, error_subtitle = "", error_message = ""):
@@ -207,14 +207,93 @@ def styling_user_role():
     """
     st.markdown(f"<style>{cssUserChat}</style>", unsafe_allow_html=True)
 
-def get_timestamp_string(name, timestamp):
+def format_timestamp(timestamp):
     if isinstance(timestamp, str):
         # Parse ISO string to datetime object
         timestamp = datetime.datetime.fromisoformat(timestamp)
-    return f"**{name} - {timestamp.strftime('%A, %d %B %Y %H.%M.%S %Z')}**"
+    return timestamp.strftime('%A, %d %B %Y %H.%M.%S %Z')
+
+def get_timestamp_string(name, timestamp):
+    return f"**{name} - {format_timestamp(timestamp)}**"
 
 def get_role_avatar(role):
     return "assets/user.png" if role == "user" else "assets/ai_assistant.png"
+
+def generate_chat_input(text, files):
+    name = "User"
+    role = "user"
+    input_content = get_input_content(text, files)
+    timestamp = get_timestamp()
+
+    with st.container(key=f"{role}-{str(uuid.uuid4())}"):
+        with st.chat_message(role, avatar=get_role_avatar(role)):
+            display_messages(text, files, name, timestamp)
+    
+    st.session_state.messages.append({
+        "role": role,
+        "content": text,
+        "files": [
+            {
+                "name": file.name,
+                "mimetype": file.type,
+                "data": base64.b64encode(file.getvalue()).decode("utf-8")
+            } for file in files
+        ] if files else [],
+        "name": name,
+        "timestamp": timestamp
+    })
+    save_message_into_session(session_id, "user", name, text, timestamp, files)
+
+    # region Create a request to the server
+    exception_occurred = False
+    error_message = ""
+    response = None
+
+    empty_space = st.empty()
+    with empty_space.container():
+        with st.status("Please wait, the AI assistant is typing a message...", expanded=True):
+            try:
+                response = requests.post(
+                    url=BASE_URL,
+                    headers=get_input_headers(),
+                    data=get_input_data(input_content),
+                    stream=True,
+                    timeout=30
+                )
+            except requests.Timeout:
+                exception_occurred = True
+                error_message = "Request timed out. Please try again."
+            except requests.RequestException as e:
+                exception_occurred = True
+                error_message = str(e)
+    # endregion
+
+    # region Retrieve a response
+    if exception_occurred:
+        empty_space.empty() # Hide Loading Component
+        display_error_message("**❌ Error**", error_message=error_message)
+    elif response is not None:
+        empty_space.empty() # Hide Loading Component
+
+        if response.status_code == 200:
+            # region Show Success Response from Assistant
+            role = "assistant"
+            with st.container(key=f"{role}-{str(uuid.uuid4())}"):
+                with st.chat_message(role, avatar=get_role_avatar(role)):
+                    generate_assistant_response(response)
+                    st.rerun() # Rerun to reset the state of new session creation
+            # endregion
+        else:
+            # region Show Error Response when status code retrieved from API is not succeed
+            error_json = json.loads(response.text)
+            error = error_json.get("error")
+            error_message = error.get("message")
+            error_status_code = error.get("code")
+            display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
+            # endregion
+    else:
+        empty_space.empty() # Hide Loading Component
+    # endregion
 # endregion
 
 # region Sidebar
@@ -235,20 +314,20 @@ st.sidebar.subheader("Chat Sessions")
 
 # region New Chat Button
 if len(sessions) > 0:
-    if st.session_state.new_chat:
+    if st.session_state.new_session:
         if st.sidebar.button("⬅️ Back", key="back_to_sessions", use_container_width=True):
-            st.session_state.new_chat = False
+            st.session_state.new_session = False
             st.rerun()
     else:
         if st.sidebar.button("➕ New chat", use_container_width=True):
-            st.session_state.new_chat = True
+            st.session_state.new_session = True
             st.rerun()
 else:
-    st.session_state.new_chat = st.session_state.get("new_chat", False)
+    st.session_state.new_session = st.session_state.get("new_session", False)
 # endregion
 
 # region Session Selector
-if st.session_state.new_chat or not sessions:
+if st.session_state.new_session or not sessions:
     new_session_name = st.sidebar.text_input("Session name", key="new_session_name")
 
     if st.session_state.session_name_error:
@@ -267,7 +346,7 @@ if st.session_state.new_chat or not sessions:
                 session_id = create_session(new_session_name, get_timestamp())
                 st.session_state.create_new_session_error_message = ""
                 st.session_state.session_id = session_id
-                st.session_state.new_chat = False
+                st.session_state.new_session = False
                 st.session_state.session_name_error = False
                 st.rerun()
                 # endregion
@@ -277,7 +356,7 @@ if st.session_state.new_chat or not sessions:
             st.session_state.session_name_error = True
             st.rerun()
             # endregion
-    elif sessions and not st.session_state.new_chat:
+    elif sessions and not st.session_state.new_session:
         st.session_state.session_id = session_ids[0]
 else:
     selected_idx = st.sidebar.radio(
@@ -314,6 +393,13 @@ for message in st.session_state.messages:
 styling_user_role()
 # endregion
 
+# region Handle Pending Message from sending a message while creating a new session
+if "pending_message" in st.session_state:
+    pending = st.session_state.pop("pending_message", None)
+    if pending:
+        generate_chat_input(pending.get("text", ""), pending.get("files", []))
+# endregion
+
 user_input = st.chat_input("Input your message here", accept_file="multiple", file_type=["jpg", "jpeg", "png", "pdf"])
 
 if user_input is not None:
@@ -324,77 +410,38 @@ if user_input is not None:
         # Happens when we tried to send the message, specifically when we uploaded invalid file type from drag and drop as Streamlit filters out invalid file types.
         display_error_message("**❌ Error**", error_message="Please enter a message or upload a file before sending.")
     else:
-        input_content = get_input_content(text, files)
+        # region Handle New Session Creation on chat input
+        if st.session_state.new_session:
+            new_session_name = st.session_state.get("new_session_name", "")
+            session_timestamp = get_timestamp()
+            if not new_session_name:
+                new_session_name = f"Session created at {format_timestamp(session_timestamp)}"
 
-        name = "User"
-        role = "user"
-        timestamp = get_timestamp()
-        with st.container(key=f"{role}-{str(uuid.uuid4())}"):
-            with st.chat_message(role, avatar=get_role_avatar(role)):
-                display_messages(text, files, name, timestamp)
-        
-        st.session_state.messages.append({
-            "role": role,
-            "content": text,
-            "files": [
-                {
-                    "name": file.name,
-                    "mimetype": file.type,
-                    "data": base64.b64encode(file.getvalue()).decode("utf-8")
-                } for file in files
-            ] if files else [],
-            "name": name,
-            "timestamp": timestamp
-        })
-        save_message(session_id, "user", name, text, timestamp, files)
-
-        # region Create a request to the server
-        exception_occurred = False
-        error_message = ""
-        response = None
-
-        empty_space = st.empty()
-        with empty_space.container():
-            with st.status("Please wait, the AI assistant is typing a message...", expanded=True):
-                try:
-                    response = requests.post(
-                        url=BASE_URL,
-                        headers=get_input_headers(),
-                        data=get_input_data(input_content),
-                        stream=True,
-                        timeout=30
-                    )
-                except requests.Timeout:
-                    exception_occurred = True
-                    error_message = "Request timed out. Please try again."
-                except requests.RequestException as e:
-                    exception_occurred = True
-                    error_message = str(e)
-        # endregion
-
-        # region Retrieve a response
-        if exception_occurred:
-            empty_space.empty() # Hide Loading Component
-            display_error_message("**❌ Error**", error_message=error_message)
-        elif response is not None:
-            empty_space.empty() # Hide Loading Component
-
-            if response.status_code == 200:
-                # region Show Success Response from Assistant
-                role = "assistant"
-                with st.container(key=f"{role}-{str(uuid.uuid4())}"):
-                    with st.chat_message(role, avatar=get_role_avatar(role)):
-                        generate_assistant_response(response)
+            if new_session_name in session_names:
+                # region Duplicate session names
+                st.session_state.create_new_session_error_message = "Session name already exists. Please choose a different name."
+                st.session_state.session_name_error = True
+                st.rerun()
                 # endregion
             else:
-                # region Show Error Response when status code retrieved from API is not succeed
-                error_json = json.loads(response.text)
-                error = error_json.get("error")
-                error_message = error.get("message")
-                error_status_code = error.get("code")
-                display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
+                # region Create a new session
+                session_id = create_session(new_session_name, session_timestamp)
+                # region Session creation
+                st.session_state.session_id = session_id
+                st.session_state.new_session = False
+                st.session_state.session_name_error = False
+                st.session_state.create_new_session_error_message = ""
                 # endregion
-        else:
-            empty_space.empty() # Hide Loading Component
+                # region Sending messages
+                st.session_state.messages = []
+                st.session_state.pending_message = {
+                    "text": text,
+                    "files": files
+                }
+                st.rerun() # Reset the state of new session creation
+                # endregion
+                # endregion
         # endregion
+
+        generate_chat_input(text, files)
 # endregion
