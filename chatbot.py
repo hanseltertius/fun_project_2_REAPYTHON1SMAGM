@@ -290,6 +290,9 @@ def generate_chat_input(text, files):
                     stream=True,
                     timeout=30
                 )
+            except requests.ConnectionError:
+                exception_occurred = True
+                error_message = "No internet connection. Please check your network and try again."
             except requests.Timeout:
                 exception_occurred = True
                 error_message = "Request timed out. Please try again."
@@ -466,7 +469,10 @@ else:
         disabled=st.session_state.get("generating_response", False)
     )
     # region Handle Session Selection Change from Radio Button
-    st.session_state.session_id = session_ids[selected_idx]
+    if selected_idx is not None and len(session_ids) > 0:
+        st.session_state.session_id = session_ids[selected_idx]
+    else:
+        st.session_state.session_id = session_ids[0] if session_ids else None
     if st.session_state.get("session_changed"):
         st.session_state.session_changed = False
         st.rerun()
