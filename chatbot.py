@@ -360,6 +360,7 @@ def on_create_session(new_session_name, is_input_chat=False, text=None, files=No
             # region Check if session name already exists
             st.session_state.create_new_session_error_message = "Session name already exists. Please choose a different name."
             st.session_state.session_name_error = True
+            st.session_state.generating_response = False
             st.rerun()
             # endregion
         else:
@@ -385,6 +386,7 @@ def on_create_session(new_session_name, is_input_chat=False, text=None, files=No
         # region Error message for empty session input name
         st.session_state.create_new_session_error_message = "Session name must not be empty."
         st.session_state.session_name_error = True
+        st.session_state.generating_response = False
         st.rerun()
         # endregion
 # endregion
