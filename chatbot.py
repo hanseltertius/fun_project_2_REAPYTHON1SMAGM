@@ -305,7 +305,7 @@ def on_session_name_input_change():
     st.session_state.add_new_session_error_message = ""
     st.session_state.session_name_error = False
     
-def on_create_session(new_session_name, is_input_chat=False):
+def on_create_session(new_session_name, is_input_chat=False, text=None, files=None):
     if new_session_name:
         if new_session_name in session_names:
             # region Check if session name already exists
@@ -318,7 +318,6 @@ def on_create_session(new_session_name, is_input_chat=False):
             session_id = create_session(new_session_name, get_timestamp())
             st.session_state.create_new_session_error_message = ""
             st.session_state.session_id = session_id
-            st.session_state.new_session = False
             st.session_state.session_name_error = False
             
             if is_input_chat:
@@ -330,6 +329,7 @@ def on_create_session(new_session_name, is_input_chat=False):
                 }
                 # endregion
             
+            st.session_state.new_session = False
             st.rerun()
             # endregion
     else:
@@ -443,11 +443,11 @@ if user_input is not None:
         # Happens when we tried to send the message, specifically when we uploaded invalid file type from drag and drop as Streamlit filters out invalid file types.
         display_error_message("**❌ Error**", error_message="Please enter a message or upload a file before sending.")
     else:
-        # region Handle New Session Creation on chat input
         if st.session_state.new_session:
+            # region Handle New Session Creation on chat input
             new_session_name = st.session_state.get("new_session_name")
-            on_create_session(new_session_name, is_input_chat=True)
-        # endregion
-
-        generate_chat_input(text, files)
+            on_create_session(new_session_name, is_input_chat=True, text=text, files=files)
+            # endregion
+        else:
+            generate_chat_input(text, files)
 # endregion
