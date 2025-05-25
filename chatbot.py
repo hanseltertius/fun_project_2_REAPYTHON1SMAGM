@@ -401,14 +401,7 @@ if st.session_state.new_session or not sessions:
     if st.session_state.session_name_error:
         st.sidebar.error(st.session_state.create_new_session_error_message)
     
-    if st.sidebar.button(
-        "📝 Create Session", 
-        key="create_session", 
-        use_container_width=True,
-        disabled=st.session_state.get("generating_response", False)
-    ):
-        on_create_session(new_session_name)
-    elif sessions and not st.session_state.new_session:
+    if sessions and not st.session_state.new_session:
         st.session_state.session_id = session_ids[0]
 else:
     selected_idx = st.sidebar.radio(
