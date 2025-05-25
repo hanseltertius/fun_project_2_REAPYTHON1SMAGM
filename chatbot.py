@@ -14,6 +14,8 @@ from db.chat_history import init_db, save_message_into_session, fetch_chat_histo
 BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-4.1"
 ACCEPTED_FILE_TYPES = ["jpg", "jpeg", "png", "pdf"]
+USER = "user"
+ASSISTANT = "assistant"
 
 timezone = st_javascript("""await (async () => {
             const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -22,26 +24,22 @@ timezone = st_javascript("""await (async () => {
 # endregion
 
 # region State Initialization
-if "new_session" not in st.session_state:
-    st.session_state.new_session = False
+def initialize_session_state():
+    defaults = {
+        "new_session": False,
+        "messages": [],
+        "create_new_session_error_message": "",
+        "session_name_error": False,
+        "session_changed": False,
+        "generating_response": False,
+        "input_error_message": {},
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "create_new_session_error_message" not in st.session_state:
-    st.session_state.create_new_session_error_message = ""
-
-if "session_name_error" not in st.session_state:
-    st.session_state.session_name_error = False
-
-if "session_changed" not in st.session_state:
-    st.session_state.session_changed = False
-
-if "generating_response" not in st.session_state:
-    st.session_state.generating_response = False
-
-if "input_error_message" not in st.session_state:
-    st.session_state.input_error_message = {}
+# Call this function at the top of your script
+initialize_session_state()
 # endregion
 
 # region Methods
@@ -112,8 +110,8 @@ def generate_assistant_response(response):
                     }
                     st.rerun()
     message_placeholder.markdown(generated_response)
-    st.session_state.messages.append({"role": "assistant", "content": generated_response, "name": name, "timestamp": timestamp})
-    save_message_into_session(session_id, "assistant", name, generated_response, timestamp)
+    st.session_state.messages.append({"role": ASSISTANT, "content": generated_response, "name": name, "timestamp": timestamp})
+    save_message_into_session(session_id, ASSISTANT, name, generated_response, timestamp)
     # endregion
 
 def display_error_message(error_title, error_subtitle = "", error_message = ""):
@@ -223,7 +221,7 @@ def get_input_headers():
     return {"Authorization": f"Bearer {st.secrets.get('OPEN_ROUTER_API_KEY')}"}
 
 def get_input_data(input_content):
-    user_message = { "role": "user", "content": input_content }
+    user_message = { "role": USER, "content": input_content }
     return json.dumps({
         "model": MODEL,
         "messages": [user_message],
@@ -249,11 +247,11 @@ def get_timestamp_string(name, timestamp):
     return f"**{name} - {format_timestamp(timestamp)}**"
 
 def get_role_avatar(role):
-    return "assets/user.png" if role == "user" else "assets/ai_assistant.png"
+    return "assets/user.png" if role == USER else "assets/ai_assistant.png"
 
 def generate_chat_input(text, files):
     name = "User"
-    role = "user"
+    role = USER
     input_content = get_input_content(text, files)
     timestamp = get_timestamp()
 
@@ -274,7 +272,7 @@ def generate_chat_input(text, files):
         "name": name,
         "timestamp": timestamp
     })
-    save_message_into_session(session_id, "user", name, text, timestamp, files)
+    save_message_into_session(session_id, USER, name, text, timestamp, files)
 
     # region Create a request to the server
     exception_occurred = False
@@ -315,7 +313,7 @@ def generate_chat_input(text, files):
 
         if response.status_code == 200:
             # region Show Success Response from Assistant
-            role = "assistant"
+            role = ASSISTANT
             with st.container(key=f"{role}-{str(uuid.uuid4())}"):
                 with st.chat_message(role, avatar=get_role_avatar(role)):
                     generate_assistant_response(response)
