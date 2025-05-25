@@ -483,7 +483,7 @@ else:
 # region Initialize Session Data
 if is_list_not_empty(sessions):
     # set selected session ID based on the initial value of Radio Button
-    if not st.session_state.new_session:
+    if not st.session_state.new_session and "session_id" not in st.session_state:
         st.session_state.session_id = session_ids[0]
 else:
     st.session_state.new_session = True
