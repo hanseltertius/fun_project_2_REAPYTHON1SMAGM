@@ -472,7 +472,7 @@ else:
     if selected_idx is not None and len(session_ids) > 0:
         st.session_state.session_id = session_ids[selected_idx]
     else:
-        st.session_state.session_id = session_ids[0] if session_ids else None
+        st.session_state.session_id = session_ids[0] if session_ids else 0
     if st.session_state.get("session_changed"):
         st.session_state.session_changed = False
         st.rerun()
