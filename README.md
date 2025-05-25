@@ -2,17 +2,20 @@
 
 ### Table of Contents
 
-- [fun\_project\_2\_REAPYTHON1SMAGM](#fun_project_2_reapython1smagm)
-    - [Table of Contents](#table-of-contents)
-    - [Project Description](#project-description)
-    - [How to Setup Project](#how-to-setup-project)
-    - [How to Obtain OpenRouter API Key](#how-to-obtain-openrouter-api-key)
-    - [Usage](#usage)
-    - [Features](#features)
-    - [Demo](#demo)
-      - [Send a text](#send-a-text)
-      - [Send an image](#send-an-image)
-      - [Send a PDF File](#send-a-pdf-file)
+- [fun_project_2_REAPYTHON1SMAGM](#fun_project_2_reapython1smagm)
+  - [Table of Contents](#table-of-contents)
+  - [Project Description](#project-description)
+  - [How to Setup Project](#how-to-setup-project)
+  - [How to Obtain OpenRouter API Key](#how-to-obtain-openrouter-api-key)
+  - [Usage](#usage)
+  - [Features](#features)
+  - [Demo](#demo)
+    - [Send a text](#send-a-text)
+    - [Send an image](#send-an-image)
+    - [Send a PDF File](#send-a-pdf-file)
+    - [Session Validation](#session-validation)
+      - [Empty Session](#empty-session)
+      - [Duplicate Session](#duplicate-session)
 
 ### Project Description
 
@@ -33,8 +36,8 @@ here: [Python AI Bootcamp by Ruangguru](https://rea.ruangguru.com/python-ai)
    - To activate the virtual environment, we need to type:
      - If using Windows : `myenv\Scripts\activate`
      - If using Mac : `source myenv/bin/activate`
-3. Install streamlit library (only if streamlit does not installed globally):
-   - `pip install streamlit`
+3. Install some libraries (only if those libraries does not installed globally):
+   - `pip install streamlit streamlit-javascript`
 4. We need to [create a OpenRouter API Key](#how-to-obtain-openrouter-api-key)
    into the secrets file.
 
@@ -84,6 +87,8 @@ In this project, the features include:
 ![Screenshot](screenshots/Input%20Text.png)
 
 - Click **"Send (>) Button"** (only works when the text is not empty)
+- While we try to add session, where the text input involves entering session
+  name, entering the chat will create a new session
 
 ![Screenshot](screenshots/Input%20Text%20Result.png)
 
@@ -111,3 +116,30 @@ In this project, the features include:
 ![Screenshot](screenshots/Upload%20PDF%20Result.png)
 
 - The AI Assistant will generate a response based on the uploaded PDF file.
+
+#### Session Validation
+
+##### Empty Session
+
+![Screenshot](screenshots/Empty%20Session%20Input.png)
+
+- Send the chat while the Session Name is empty.
+
+![Screenshot](screenshots/Empty%20Session%20Validation.png)
+
+- It will get the validation that says **"Session name must not be empty."**
+
+##### Duplicate Session
+
+![Screenshot](screenshots/Session%20List.png)
+
+- Click New chat button to add a new session.
+
+![Screenshot](screenshots/Duplicate%20Session%20Text%20Input.png)
+
+- Input the session that already exists in the list of sessions.
+
+![Screenshot](screenshots/Duplicate%20Session%20Validation.png)
+
+- It will get the validation that says :
+  - **"Session name already exists. Please choose a different name."**
