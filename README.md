@@ -2,20 +2,21 @@
 
 ### Table of Contents
 
-- [fun_project_2_REAPYTHON1SMAGM](#fun_project_2_reapython1smagm)
-  - [Table of Contents](#table-of-contents)
-  - [Project Description](#project-description)
-  - [How to Setup Project](#how-to-setup-project)
-  - [How to Obtain OpenRouter API Key](#how-to-obtain-openrouter-api-key)
-  - [Usage](#usage)
-  - [Features](#features)
-  - [Demo](#demo)
-    - [Send a text](#send-a-text)
-    - [Send an image](#send-an-image)
-    - [Send a PDF File](#send-a-pdf-file)
-    - [Session Validation](#session-validation)
-      - [Empty Session](#empty-session)
-      - [Duplicate Session](#duplicate-session)
+- [fun\_project\_2\_REAPYTHON1SMAGM](#fun_project_2_reapython1smagm)
+    - [Table of Contents](#table-of-contents)
+    - [Project Description](#project-description)
+    - [How to Setup Project](#how-to-setup-project)
+    - [How to Obtain OpenRouter API Key](#how-to-obtain-openrouter-api-key)
+    - [Usage](#usage)
+    - [Features](#features)
+    - [Demo](#demo)
+      - [Send a text](#send-a-text)
+      - [Send an image](#send-an-image)
+      - [Send a PDF File](#send-a-pdf-file)
+      - [Session Validation](#session-validation)
+        - [Empty Session](#empty-session)
+        - [Duplicate Session](#duplicate-session)
+      - [Delete All Sessions](#delete-all-sessions)
 
 ### Project Description
 
@@ -143,3 +144,18 @@ In this project, the features include:
 
 - It will get the validation that says :
   - **"Session name already exists. Please choose a different name."**
+
+#### Delete All Sessions
+
+![Screenshot](screenshots/Delete%20All%20Session%20Prompt.png)
+
+- Click the button **"Delete all sessions"**
+
+![Screenshot](screenshots/Delete%20All%20Sessions%20Confirmation.png)
+
+- Click the button **"Yes, delete all sessions"** to proceed with deletion
+
+![Screenshot](screenshots/Delete%20All%20Sessions%20Result.png)
+
+- We have reset the sessions state and back to the initial state of the
+  application where we don't have saved sessions.
