@@ -36,6 +36,9 @@ if "session_name_error" not in st.session_state:
 
 if "session_changed" not in st.session_state:
     st.session_state.session_changed = False
+
+if "generating_response" not in st.session_state:
+    st.session_state.generating_response = False
 # endregion
 
 # region Methods
@@ -275,6 +278,8 @@ def generate_chat_input(text, files):
     if exception_occurred:
         empty_space.empty() # Hide Loading Component
         display_error_message("**❌ Error**", error_message=error_message)
+        st.session_state.generating_response = False
+        st.rerun()
     elif response is not None:
         empty_space.empty() # Hide Loading Component
 
@@ -284,6 +289,7 @@ def generate_chat_input(text, files):
             with st.container(key=f"{role}-{str(uuid.uuid4())}"):
                 with st.chat_message(role, avatar=get_role_avatar(role)):
                     generate_assistant_response(response)
+                    st.session_state.generating_response = False
                     st.rerun() # Rerun to reset the state of new session creation
             # endregion
         else:
@@ -293,9 +299,13 @@ def generate_chat_input(text, files):
             error_message = error.get("message")
             error_status_code = error.get("code")
             display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
+            st.session_state.generating_response = False
+            st.rerun()
             # endregion
     else:
         empty_space.empty() # Hide Loading Component
+        st.session_state.generating_response = False
+        st.rerun()
     # endregion
 
 def on_session_change():
@@ -330,6 +340,7 @@ def on_create_session(new_session_name, is_input_chat=False, text=None, files=No
                 # endregion
             
             st.session_state.new_session = False
+            st.session_state.generating_response = True
             st.rerun()
             # endregion
     else:
@@ -359,13 +370,22 @@ st.sidebar.subheader("Chat Sessions")
 # region New Chat Button
 if len(sessions) > 0:
     if st.session_state.new_session:
-        if st.sidebar.button("⬅️ Back", key="back_to_sessions", use_container_width=True):
+        if st.sidebar.button(
+            "⬅️ Back", 
+            key="back_to_sessions", 
+            use_container_width=True,
+            disabled=st.session_state.get("generating_response", False)
+        ):
             st.session_state.new_session = False
             st.session_state.create_new_session_error_message = ""
             st.session_state.session_name_error = False
             st.rerun()
     else:
-        if st.sidebar.button("➕ New chat", use_container_width=True):
+        if st.sidebar.button(
+            "➕ New chat", 
+            use_container_width=True,
+            disabled=st.session_state.get("generating_response", False)
+        ):
             st.session_state.new_session = True
             st.session_state.create_new_session_error_message = ""
             st.session_state.session_name_error = False
@@ -381,7 +401,12 @@ if st.session_state.new_session or not sessions:
     if st.session_state.session_name_error:
         st.sidebar.error(st.session_state.create_new_session_error_message)
     
-    if st.sidebar.button("📝 Create Session", key="create_session", use_container_width=True):
+    if st.sidebar.button(
+        "📝 Create Session", 
+        key="create_session", 
+        use_container_width=True,
+        disabled=st.session_state.get("generating_response", False)
+    ):
         on_create_session(new_session_name)
     elif sessions and not st.session_state.new_session:
         st.session_state.session_id = session_ids[0]
@@ -392,9 +417,10 @@ else:
         format_func=lambda i: session_names[i],
         index=session_ids.index(st.session_state.get("session_id", session_ids[0])) if session_ids else 0,
         key="session_radio",
-        on_change=on_session_change
+        on_change=on_session_change,
+        disabled=st.session_state.get("generating_response", False)
     )
-    # region Handle Session Selection Change
+    # region Handle Session Selection Change from Radio Button
     st.session_state.session_id = session_ids[selected_idx]
     if st.session_state.get("session_changed"):
         st.session_state.session_changed = False
@@ -433,7 +459,12 @@ if "pending_message" in st.session_state:
         generate_chat_input(pending.get("text", ""), pending.get("files", []))
 # endregion
 
-user_input = st.chat_input("Input your message here", accept_file="multiple", file_type=["jpg", "jpeg", "png", "pdf"])
+user_input = st.chat_input(
+    "Input your message here", 
+    accept_file="multiple", 
+    file_type=["jpg", "jpeg", "png", "pdf"],
+    disabled=st.session_state.get("generating_response", False)
+)
 
 if user_input is not None:
     text = user_input.get("text")
@@ -449,5 +480,7 @@ if user_input is not None:
             on_create_session(new_session_name, is_input_chat=True, text=text, files=files)
             # endregion
         else:
-            generate_chat_input(text, files)
+            st.session_state.pending_message = {"text": text, "files": files}
+            st.session_state.generating_response = True
+            st.rerun()
 # endregion
