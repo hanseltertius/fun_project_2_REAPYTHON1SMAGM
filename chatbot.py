@@ -434,7 +434,8 @@ else:
 
 # region Session Selector
 if st.session_state.new_session or not sessions:
-    new_session_name = st.sidebar.text_input("Session name", key="new_session_name", on_change=on_session_name_input_change, placeholder="Enter chat input to create session")
+    st.sidebar.info("Enter chat input to create session")
+    new_session_name = st.sidebar.text_input("Session name", key="new_session_name", on_change=on_session_name_input_change, placeholder="Input session name here")
 
     if st.session_state.session_name_error:
         st.sidebar.error(st.session_state.create_new_session_error_message)
