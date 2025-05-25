@@ -39,6 +39,9 @@ if "session_changed" not in st.session_state:
 
 if "generating_response" not in st.session_state:
     st.session_state.generating_response = False
+
+if "input_error_message" not in st.session_state:
+    st.session_state.input_error_message = {}
 # endregion
 
 # region Methods
@@ -70,7 +73,13 @@ def generate_assistant_response(response):
                     json_data = json.loads(data)
                     error = json_data.get("error")
                     if error is not None:
-                        display_error_message("**❌ Error:**", error_message=error.get("message"))
+                        st.session_state.generating_response = False
+                        st.session_state.input_error_message = {
+                            "title": "**❌ Error**",
+                            "subtitle": "",
+                            "message": "Please enter a message or upload a file before sending."
+                        }
+                        st.rerun()
                     else:
                         choices = json_data.get("choices")
                         if is_list_not_empty(choices):
@@ -79,23 +88,40 @@ def generate_assistant_response(response):
                                 generated_response += message_delta.get("content") or ""
                                 message_placeholder.markdown(f"{generated_response}▌")
                 except json.JSONDecodeError as ex:
-                    display_error_message("**❌ Streaming Error:**", error_message=f"JSON decode error: {ex}")
+                    st.session_state.generating_response = False
+                    st.session_state.input_error_message = {
+                        "title": "**❌ Streaming Error**",
+                        "subtitle": "",
+                        "message": f"JSON decode error: {ex}"
+                    }
+                    st.rerun()
                 except KeyError as ex:
-                    display_error_message("**❌ Streaming Error:**", error_message=f"Missing key: {ex}")
+                    st.session_state.generating_response = False
+                    st.session_state.input_error_message = {
+                        "title": "**❌ Streaming Error**",
+                        "subtitle": "",
+                        "message": f"Missing key: {ex}"
+                    }
+                    st.rerun()
                 except Exception as ex:
-                    display_error_message("**❌ Streaming Error:**", error_message=str(ex))
+                    st.session_state.generating_response = False
+                    st.session_state.input_error_message = {
+                        "title": "**❌ Streaming Error**",
+                        "subtitle": "",
+                        "message": str(ex)
+                    }
+                    st.rerun()
     message_placeholder.markdown(generated_response)
     st.session_state.messages.append({"role": "assistant", "content": generated_response, "name": name, "timestamp": timestamp})
     save_message_into_session(session_id, "assistant", name, generated_response, timestamp)
     # endregion
 
 def display_error_message(error_title, error_subtitle = "", error_message = ""):
-    msg = error_title
-    if error_subtitle:
-        msg += f"\n{error_subtitle}"
-    if error_message:
-        msg += f"\n{error_message}"
-    st.error(msg)
+    st.error(f"""
+        {error_title}
+        {error_subtitle}
+        {error_message}
+    """)
 
 def is_list_not_empty(list):
     return list is not None and len(list) > 0
@@ -277,8 +303,12 @@ def generate_chat_input(text, files):
     # region Retrieve a response
     if exception_occurred:
         empty_space.empty() # Hide Loading Component
-        display_error_message("**❌ Error**", error_message=error_message)
         st.session_state.generating_response = False
+        st.session_state.input_error_message = {
+            "title": "**❌ Error**",
+            "subtitle": "",
+            "message": error_message
+        }
         st.rerun()
     elif response is not None:
         empty_space.empty() # Hide Loading Component
@@ -298,8 +328,13 @@ def generate_chat_input(text, files):
             error = error_json.get("error")
             error_message = error.get("message")
             error_status_code = error.get("code")
-            display_error_message("**❌ Error**", f"**Status Code:** {error_status_code}", error_message)
+            
             st.session_state.generating_response = False
+            st.session_state.input_error_message = {
+                "title": "**❌ Error**",
+                "subtitle": f"**Status Code:** {error_status_code}",
+                "message": error_message
+            }
             st.rerun()
             # endregion
     else:
@@ -314,7 +349,11 @@ def on_session_change():
 def on_session_name_input_change():
     st.session_state.add_new_session_error_message = ""
     st.session_state.session_name_error = False
-    
+
+def on_submit_chat_input():
+    st.session_state.generating_response = True
+    st.session_state.input_error_message = {}
+
 def on_create_session(new_session_name, is_input_chat=False, text=None, files=None):
     if new_session_name:
         if new_session_name in session_names:
@@ -340,7 +379,6 @@ def on_create_session(new_session_name, is_input_chat=False, text=None, files=No
                 # endregion
             
             st.session_state.new_session = False
-            st.session_state.generating_response = True
             st.rerun()
             # endregion
     else:
@@ -396,7 +434,7 @@ else:
 
 # region Session Selector
 if st.session_state.new_session or not sessions:
-    new_session_name = st.sidebar.text_input("Session name", key="new_session_name", on_change=on_session_name_input_change)
+    new_session_name = st.sidebar.text_input("Session name", key="new_session_name", on_change=on_session_name_input_change, placeholder="Enter chat input to create session")
 
     if st.session_state.session_name_error:
         st.sidebar.error(st.session_state.create_new_session_error_message)
@@ -433,16 +471,18 @@ else:
 
 # region Main Chat UI
 
+# region Styling the "User" role chat component into the right side
+styling_user_role()
+# endregion
+
+# region State Initialization after re-rendering
+
 # region Displayed Messages
 for message in st.session_state.messages:
     role = message.get("role")
     with st.container(key=f"{role}-{str(uuid.uuid4())}"):
         with st.chat_message(role, avatar=get_role_avatar(role)):
             display_messages(message.get("content"), message.get("files", []), message.get("name"), message.get("timestamp"))
-# endregion
-
-# region Styling the "User" role chat component into the right side
-styling_user_role()
 # endregion
 
 # region Handle Pending Message from sending a message while creating a new session
@@ -452,11 +492,17 @@ if "pending_message" in st.session_state:
         generate_chat_input(pending.get("text", ""), pending.get("files", []))
 # endregion
 
+if "input_error_message" in st.session_state and st.session_state.input_error_message:
+    input_error = st.session_state.input_error_message
+    display_error_message(input_error.get("title", ""), input_error.get("subtitle", ""), input_error.get("message", ""))
+# endregion
+
 user_input = st.chat_input(
     "Input your message here", 
     accept_file="multiple", 
     file_type=["jpg", "jpeg", "png", "pdf"],
-    disabled=st.session_state.get("generating_response", False)
+    disabled=st.session_state.get("generating_response", False),
+    on_submit=on_submit_chat_input
 )
 
 if user_input is not None:
@@ -465,7 +511,13 @@ if user_input is not None:
 
     if not text and not files:
         # Happens when we tried to send the message, specifically when we uploaded invalid file type from drag and drop as Streamlit filters out invalid file types.
-        display_error_message("**❌ Error**", error_message="Please enter a message or upload a file before sending.")
+        st.session_state.generating_response = False
+        st.session_state.input_error_message = {
+            "title": "**❌ Error**",
+            "subtitle": "",
+            "message": "Please enter a message or upload a file before sending."
+        }
+        st.rerun()
     else:
         if st.session_state.new_session:
             # region Handle New Session Creation on chat input
@@ -474,6 +526,5 @@ if user_input is not None:
             # endregion
         else:
             st.session_state.pending_message = {"text": text, "files": files}
-            st.session_state.generating_response = True
             st.rerun()
 # endregion
