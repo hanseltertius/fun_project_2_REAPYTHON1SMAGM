@@ -415,9 +415,9 @@ st.sidebar.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, 
 # region Sidebar Session
 st.sidebar.subheader("Chat Sessions")
 
-# region New Session Button
-if len(sessions) > 0:
-    if st.session_state.new_session:
+# region Sidebar Layout
+if st.session_state.new_session:
+    if is_list_not_empty(sessions):
         if st.sidebar.button(
             "⬅️ Back", 
             key="back_to_sessions", 
@@ -428,22 +428,7 @@ if len(sessions) > 0:
             st.session_state.create_new_session_error_message = ""
             st.session_state.session_name_error = False
             st.rerun()
-    else:
-        if st.sidebar.button(
-            "➕ New Session", 
-            use_container_width=True,
-            disabled=st.session_state.get("generating_response", False)
-        ):
-            st.session_state.new_session = True
-            st.session_state.create_new_session_error_message = ""
-            st.session_state.session_name_error = False
-            st.rerun()
-else:
-    st.session_state.new_session = True
-# endregion
 
-# region Session Selector
-if st.session_state.new_session or not sessions:
     new_session_name = st.sidebar.text_input(
         "Session name", 
         key="new_session_name", 
@@ -453,10 +438,17 @@ if st.session_state.new_session or not sessions:
 
     if st.session_state.session_name_error:
         st.sidebar.error(st.session_state.create_new_session_error_message)
-    
-    if sessions and not st.session_state.new_session:
-        st.session_state.session_id = session_ids[0]
 else:
+    if st.sidebar.button(
+        "➕ New Session", 
+        use_container_width=True,
+        disabled=st.session_state.get("generating_response", False)
+    ):
+        st.session_state.new_session = True
+        st.session_state.create_new_session_error_message = ""
+        st.session_state.session_name_error = False
+        st.rerun()
+
     if st.sidebar.button(
         "🗑️ Delete all sessions",
         use_container_width=True,
@@ -479,6 +471,16 @@ else:
         st.session_state.session_changed = False
         st.rerun()
     # endregion
+
+# endregion
+
+# region Initialize Session Data
+if is_list_not_empty(sessions):
+    # set selected session ID based on the initial value of Radio Button
+    if not st.session_state.new_session:
+        st.session_state.session_id = session_ids[0]
+else:
+    st.session_state.new_session = True
 # endregion
 
 # region Load messages for the current session
@@ -522,7 +524,7 @@ if "input_error_message" in st.session_state and st.session_state.input_error_me
 user_input = st.chat_input(
     "Input your message here", 
     accept_file="multiple", 
-    file_type=["jpg", "jpeg", "png", "pdf"],
+    file_type=ACCEPTED_FILE_TYPES,
     disabled=st.session_state.get("generating_response", False),
     on_submit=on_submit_chat_input
 )
