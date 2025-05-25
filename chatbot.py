@@ -8,7 +8,7 @@ import base64
 import mimetypes
 import uuid
 import io
-from db.chat_history import init_db, save_message_into_session, fetch_chat_history, create_session, get_sessions
+from db.chat_history import init_db, save_message_into_session, fetch_chat_history, create_session, get_sessions, delete_all_sessions
 
 # region Variables
 BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -354,6 +354,16 @@ def on_submit_chat_input():
     st.session_state.generating_response = True
     st.session_state.input_error_message = {}
 
+@st.dialog("Confirm to Delete")
+def show_delete_confirmation():
+    st.write("Are you sure you want to delete all sessions? This action cannot be undone.")
+    if st.button("Yes, delete all sessions", use_container_width=True):
+        delete_all_sessions()
+        st.session_state.new_session = True
+        st.session_state.create_new_session_error_message = ""
+        st.session_state.session_name_error = False
+        st.rerun()
+
 def on_create_session(new_session_name, is_input_chat=False, text=None, files=None):
     if new_session_name:
         if new_session_name in session_names:
@@ -407,7 +417,7 @@ st.sidebar.markdown("Accepted file types to be uploaded: ```JPG```, ```JPEG```, 
 # region Sidebar Session
 st.sidebar.subheader("Chat Sessions")
 
-# region New Chat Button
+# region New Session Button
 if len(sessions) > 0:
     if st.session_state.new_session:
         if st.sidebar.button(
@@ -422,7 +432,7 @@ if len(sessions) > 0:
             st.rerun()
     else:
         if st.sidebar.button(
-            "➕ New chat", 
+            "➕ New Session", 
             use_container_width=True,
             disabled=st.session_state.get("generating_response", False)
         ):
@@ -449,6 +459,13 @@ if st.session_state.new_session or not sessions:
     if sessions and not st.session_state.new_session:
         st.session_state.session_id = session_ids[0]
 else:
+    if st.sidebar.button(
+        "🗑️ Delete all sessions",
+        use_container_width=True,
+        disabled=st.session_state.get("generating_response", False)
+    ):
+        show_delete_confirmation()
+
     selected_idx = st.sidebar.radio(
         "Select a session",
         options=list(range(len(session_names))),

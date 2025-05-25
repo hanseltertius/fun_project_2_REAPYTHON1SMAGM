@@ -91,3 +91,11 @@ def fetch_chat_history(session_id):
         } 
         for r, n, c, f, t in rows
     ]
+
+def delete_all_sessions():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM sessions")
+    c.execute("DELETE FROM messages")
+    conn.commit()
+    conn.close()
